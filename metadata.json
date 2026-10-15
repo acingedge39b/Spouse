@@ -1,0 +1,9 @@
+{
+  "name": "PhD Qualitative Research Portal - Spousal Pressure Study",
+  "description": "IRB-compliant, privacy-first asynchronous qualitative research portal for spousal pressure lived experiences featuring client-side canvas face blurring and decoupled participant data.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
