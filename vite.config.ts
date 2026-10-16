@@ -7,13 +7,32 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const entryResolverPlugin = () => ({
+  name: 'entry-resolver-fix',
+  resolveId(id: string) {
+    const cleanId = id.split('?')[0];
+    if (
+      cleanId === '/src/main.tsx' ||
+      cleanId === './src/main.tsx' ||
+      cleanId === 'src/main.tsx' ||
+      cleanId === '/src/main' ||
+      cleanId === './src/main' ||
+      cleanId === 'src/main'
+    ) {
+      return path.resolve(__dirname, 'src/main.tsx');
+    }
+    return null;
+  },
+});
+
 // https://vitejs.dev/config/
 export default defineConfig({
   root: __dirname,
-  plugins: [react(), tailwindcss()],
+  plugins: [entryResolverPlugin(), react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '/src': path.resolve(__dirname, './src'),
     },
   },
   server: {
