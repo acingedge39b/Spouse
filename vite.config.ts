@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 
 const entryResolverPlugin = () => ({
   name: 'entry-resolver-fix',
+  enforce: 'pre' as const,
   resolveId(id: string) {
     const cleanId = id.split('?')[0];
     if (
@@ -17,9 +18,13 @@ const entryResolverPlugin = () => ({
       cleanId === 'src/main.tsx' ||
       cleanId === '/src/main' ||
       cleanId === './src/main' ||
-      cleanId === 'src/main'
+      cleanId === 'src/main' ||
+      cleanId.endsWith('src/main.tsx')
     ) {
       return path.resolve(__dirname, 'src/main.tsx');
+    }
+    if (cleanId.startsWith('/src/')) {
+      return path.resolve(__dirname, cleanId.slice(1));
     }
     return null;
   },
@@ -27,12 +32,14 @@ const entryResolverPlugin = () => ({
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/',
   root: __dirname,
   plugins: [entryResolverPlugin(), react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
       '/src': path.resolve(__dirname, './src'),
+      'src': path.resolve(__dirname, './src'),
     },
   },
   server: {
