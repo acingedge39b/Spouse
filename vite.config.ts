@@ -12,19 +12,33 @@ const entryResolverPlugin = () => ({
   enforce: 'pre' as const,
   resolveId(id: string) {
     const cleanId = id.split('?')[0];
+    const lower = cleanId.toLowerCase();
     if (
-      cleanId === '/src/main.tsx' ||
-      cleanId === './src/main.tsx' ||
-      cleanId === 'src/main.tsx' ||
-      cleanId === '/src/main' ||
-      cleanId === './src/main' ||
-      cleanId === 'src/main' ||
-      cleanId.endsWith('src/main.tsx')
+      lower === '/src/main.tsx' ||
+      lower === './src/main.tsx' ||
+      lower === 'src/main.tsx' ||
+      lower === '/src/main.jsx' ||
+      lower === './src/main.jsx' ||
+      lower === 'src/main.jsx' ||
+      lower === '/src/main' ||
+      lower === './src/main' ||
+      lower === 'src/main' ||
+      lower === '/src/index.tsx' ||
+      lower === './src/index.tsx' ||
+      lower === 'src/index.tsx' ||
+      lower.endsWith('/src/main.tsx') ||
+      lower.endsWith('/src/main.jsx')
     ) {
       return path.resolve(__dirname, 'src/main.tsx');
     }
     if (cleanId.startsWith('/src/')) {
       return path.resolve(__dirname, cleanId.slice(1));
+    }
+    if (cleanId.startsWith('./src/')) {
+      return path.resolve(__dirname, cleanId.slice(2));
+    }
+    if (cleanId.startsWith('src/')) {
+      return path.resolve(__dirname, cleanId);
     }
     return null;
   },
