@@ -1,4 +1,4 @@
-import { Submission, VerifiedUser } from '../types';
+import { Submission, VerifiedUser, Appointment } from '../types';
 
 const USERS_KEY = 'irb_study_users_verified';
 const SUBMISSIONS_KEY = 'irb_study_submissions';
@@ -218,3 +218,76 @@ export function withdrawSubmission(code: string): boolean {
   }
   return false;
 }
+
+// ----------------- 1-ON-1 APPOINTMENTS & EXPRESSING STORAGE -----------------
+const APPOINTMENTS_KEY = 'irb_study_appointments';
+
+const INITIAL_SEED_APPOINTMENTS: Appointment[] = [
+  {
+    id: 'apt-seed-01',
+    appointmentCode: 'APT-4821',
+    type: 'live_interview',
+    researcher: 'Maya Lin, M.S. (Doctoral Candidate)',
+    date: '2026-10-20',
+    timeSlot: '02:00 PM - 02:45 PM EST',
+    format: 'video_face_blurred',
+    participantAlias: 'Participant R.H.',
+    focusArea: 'Navigating career vs family expectations',
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+    status: 'confirmed',
+    meetingLink: 'https://meet.google.com/irb-psyd-482'
+  }
+];
+
+export function getAppointments(): Appointment[] {
+  if (typeof window === 'undefined') return INITIAL_SEED_APPOINTMENTS;
+  try {
+    const raw = localStorage.getItem(APPOINTMENTS_KEY);
+    if (!raw) {
+      localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(INITIAL_SEED_APPOINTMENTS));
+      return INITIAL_SEED_APPOINTMENTS;
+    }
+    return JSON.parse(raw);
+  } catch {
+    return INITIAL_SEED_APPOINTMENTS;
+  }
+}
+
+export function saveAppointment(
+  data: Omit<Appointment, 'id' | 'appointmentCode' | 'createdAt' | 'status' | 'meetingLink'>
+): Appointment {
+  const appointments = getAppointments();
+  const randomNum = Math.floor(1000 + Math.random() * 9000);
+  const code = `APT-${randomNum}`;
+  const newApt: Appointment = {
+    ...data,
+    id: 'apt_' + Math.random().toString(36).substring(2, 11),
+    appointmentCode: code,
+    createdAt: new Date().toISOString(),
+    status: 'confirmed',
+    meetingLink: `https://meet.google.com/irb-study-${code.toLowerCase()}`
+  };
+  appointments.unshift(newApt);
+  try {
+    localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(appointments));
+  } catch (e) {
+    console.error('Failed to save appointment', e);
+  }
+  return newApt;
+}
+
+export function cancelAppointment(code: string): boolean {
+  const appointments = getAppointments();
+  const updated = appointments.map(apt => 
+    apt.appointmentCode.toUpperCase() === code.trim().toUpperCase()
+      ? { ...apt, status: 'cancelled' as const }
+      : apt
+  );
+  try {
+    localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(updated));
+    return true;
+  } catch {
+    return false;
+  }
+}
+

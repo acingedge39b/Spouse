@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HeartHandshake, Database, Trash2, GraduationCap, Home, Menu, X, ShieldCheck } from 'lucide-react';
+import { HeartHandshake, Database, Trash2, GraduationCap, Home, Menu, X, Calendar, MessageSquare } from 'lucide-react';
 import { StudyStep } from '../types';
 import { isUserAlreadyVerified, getPersistentVerifiedUser, clearActiveSessionToken } from '../lib/storage';
 
@@ -8,6 +8,7 @@ interface HeaderProps {
   onNavigate: (step: StudyStep) => void;
   onOpenCrisis: () => void;
   onOpenWithdrawal: () => void;
+  onOpenAppointment?: () => void;
   onOpenInvestigator: () => void;
   isInvestigatorMode?: boolean;
 }
@@ -17,6 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
   onOpenCrisis,
   onOpenWithdrawal,
+  onOpenAppointment,
   onOpenInvestigator,
   isInvestigatorMode = false
 }) => {
@@ -59,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Main Header */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-2">
         
         {/* Brand identity */}
         <div
@@ -67,33 +69,45 @@ export const Header: React.FC<HeaderProps> = ({
             setMobileMenuOpen(false);
             onNavigate('landing');
           }}
-          className="flex items-center gap-2.5 cursor-pointer group"
+          className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group min-w-0"
         >
-          <div className="w-10 h-10 rounded-2xl neo-card bg-[#FF5A36] text-white flex items-center justify-center font-black text-lg group-hover:scale-105 transition-transform">
-            <GraduationCap className="w-5 h-5" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl neo-card bg-[#FF5A36] text-white flex items-center justify-center font-black text-base sm:text-lg group-hover:scale-105 transition-transform shrink-0">
+            <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-serif font-black text-base sm:text-xl text-[#121212] tracking-tight">
+          <div className="truncate">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-serif font-black text-sm sm:text-lg md:text-xl text-[#121212] tracking-tight truncate">
                 Marital Pressures Study
               </span>
-              <span className="neo-badge bg-[#FFE600] text-[#121212] text-[9px] px-2 py-0.5">
+              <span className="neo-badge bg-[#FFE600] text-[#121212] text-[9px] px-1.5 sm:px-2 py-0.2 shrink-0">
                 PhD
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-gray-600 font-bold">
-              Qualitative Portal • Client-Side Face Anonymized
+            <p className="text-[9px] sm:text-[11px] text-gray-600 font-bold truncate">
+              Qualitative Portal • Client-Side Auto-Blurred
             </p>
           </div>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           
+          {/* 1-on-1 & Expressing Button */}
+          {onOpenAppointment && (
+            <button
+              onClick={onOpenAppointment}
+              className="neo-btn bg-[#FFE600] text-black px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs flex items-center gap-1.5 font-black hidden sm:flex"
+              title="Book 1-on-1 Interview or Open Expressing Space"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>1-on-1 & Expressing</span>
+            </button>
+          )}
+
           {/* Prominent Crisis Support Button */}
           <button
             onClick={onOpenCrisis}
-            className="neo-btn bg-[#FFEFEA] text-[#9A3412] px-3 sm:px-4 py-2 text-xs flex items-center gap-1.5"
+            className="neo-btn bg-[#FFEFEA] text-[#9A3412] px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs flex items-center gap-1.5"
             aria-label="Open Crisis Support"
           >
             <span className="relative flex h-2 w-2">
@@ -108,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Investigator Toggle */}
           <button
             onClick={onOpenInvestigator}
-            className={`neo-btn hidden md:flex items-center gap-1.5 px-3 py-2 text-xs ${
+            className={`neo-btn hidden lg:flex items-center gap-1.5 px-3 py-2 text-xs ${
               isInvestigatorMode ? 'bg-[#121212] text-white' : 'bg-white text-gray-800'
             }`}
           >
@@ -150,6 +164,24 @@ export const Header: React.FC<HeaderProps> = ({
                 Clear
               </button>
             </div>
+          )}
+
+          {onOpenAppointment && (
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenAppointment();
+              }}
+              className="w-full py-2.5 px-3 rounded-xl neo-btn bg-[#FFE600] text-black text-left flex items-center justify-between"
+            >
+              <span className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-black" />
+                Book 1-on-1 Interview / Expressing Room
+              </span>
+              <span className="neo-badge bg-black text-white text-[9px] px-1.5 py-0.2">
+                New
+              </span>
+            </button>
           )}
 
           <button

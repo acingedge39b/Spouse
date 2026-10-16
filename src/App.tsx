@@ -11,12 +11,14 @@ import { ConfirmationDebrief } from './components/ConfirmationDebrief';
 import { CrisisModal } from './components/CrisisModal';
 import { WithdrawalModal } from './components/WithdrawalModal';
 import { InvestigatorPortal } from './components/InvestigatorPortal';
+import { OneOnOneAppointmentModal } from './components/OneOnOneAppointmentModal';
 import { isUserAlreadyVerified } from './lib/storage';
 
 export function App() {
   const [currentStep, setCurrentStep] = useState<StudyStep>('landing');
   const [isCrisisOpen, setIsCrisisOpen] = useState(false);
   const [isWithdrawalOpen, setIsWithdrawalOpen] = useState(false);
+  const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
   const [isInvestigatorMode, setIsInvestigatorMode] = useState(false);
   const [lastSubmission, setLastSubmission] = useState<Submission | null>(null);
 
@@ -42,6 +44,7 @@ export function App() {
         onNavigate={handleStepNavigation}
         onOpenCrisis={() => setIsCrisisOpen(true)}
         onOpenWithdrawal={() => setIsWithdrawalOpen(true)}
+        onOpenAppointment={() => setIsAppointmentOpen(true)}
         onOpenInvestigator={() => setIsInvestigatorMode(!isInvestigatorMode)}
         isInvestigatorMode={isInvestigatorMode}
       />
@@ -58,6 +61,7 @@ export function App() {
                 onJumpToRecording={() => handleStepNavigation('recording')}
                 onOpenWithdrawal={() => setIsWithdrawalOpen(true)}
                 onOpenCrisis={() => setIsCrisisOpen(true)}
+                onOpenAppointment={() => setIsAppointmentOpen(true)}
               />
             )}
 
@@ -124,8 +128,15 @@ export function App() {
 
             <div className="flex flex-wrap items-center gap-4 text-xs">
               <button
+                onClick={() => setIsAppointmentOpen(true)}
+                className="text-[#FF5A36] font-extrabold hover:underline flex items-center gap-1"
+              >
+                1-on-1 & Expressing Room
+              </button>
+              <span>•</span>
+              <button
                 onClick={() => setIsCrisisOpen(true)}
-                className="text-[#FF5A36] font-extrabold hover:underline"
+                className="text-gray-800 font-extrabold hover:underline"
               >
                 24/7 Crisis Support
               </button>
@@ -157,6 +168,12 @@ export function App() {
       <WithdrawalModal
         isOpen={isWithdrawalOpen}
         onClose={() => setIsWithdrawalOpen(false)}
+      />
+
+      <OneOnOneAppointmentModal
+        isOpen={isAppointmentOpen}
+        onClose={() => setIsAppointmentOpen(false)}
+        onOpenCrisis={() => setIsCrisisOpen(true)}
       />
     </div>
   );

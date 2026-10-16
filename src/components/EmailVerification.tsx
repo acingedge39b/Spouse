@@ -26,7 +26,7 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
   }, []);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setInterval>;
     if (step === 'enter_otp' && resendCooldown > 0) {
       timer = setInterval(() => {
         setResendCooldown(prev => (prev > 0 ? prev - 1 : 0));

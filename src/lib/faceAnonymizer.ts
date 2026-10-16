@@ -80,7 +80,7 @@ export class CanvasFaceAnonymizer {
   private faceDetected = true;
   private detectorInstance: any = null;
   private lastDetectTime = 0;
-  private detectInterval = 65; // ~15-20 updates per second for fast tracking response
+  private detectInterval = 30; // ~30 updates per second for instantaneous tracking response
   
   // Downsampled canvas for fast real-time computer vision centroid tracking
   private cvCanvas: HTMLCanvasElement;
@@ -88,8 +88,8 @@ export class CanvasFaceAnonymizer {
 
   public options: AnonymizerOptions = {
     mode: 'gaussian',
-    blurIntensity: 36,
-    scaleFactor: 1.35,
+    blurIntensity: 38,
+    scaleFactor: 1.42,
     blurBackground: false,
     showDetectionBadge: true,
   };
@@ -327,13 +327,18 @@ export class CanvasFaceAnonymizer {
         this.detectFaces();
       }
 
-      // Smooth tracking interpolation (Responsive Exponential Smoothing)
-      // Fast enough to track quick head turns and movement across the room
-      const smoothFactor = 0.38;
-      this.currentBox.x += (this.targetBox.x - this.currentBox.x) * smoothFactor;
-      this.currentBox.y += (this.targetBox.y - this.currentBox.y) * smoothFactor;
-      this.currentBox.width += (this.targetBox.width - this.currentBox.width) * smoothFactor;
-      this.currentBox.height += (this.targetBox.height - this.currentBox.height) * smoothFactor;
+      // Adaptive tracking interpolation:
+      // When user moves quickly or turns head, track at higher speed (up to 0.85) to prevent any face exposure.
+      // When still, use 0.42 for stable, jitter-free redaction.
+      const dx = Math.abs(this.targetBox.x - this.currentBox.x);
+      const dy = Math.abs(this.targetBox.y - this.currentBox.y);
+      const moveDist = Math.sqrt(dx * dx + dy * dy);
+      const adaptiveSmooth = Math.min(0.85, Math.max(0.42, 0.42 + moveDist * 2.2));
+
+      this.currentBox.x += (this.targetBox.x - this.currentBox.x) * adaptiveSmooth;
+      this.currentBox.y += (this.targetBox.y - this.currentBox.y) * adaptiveSmooth;
+      this.currentBox.width += (this.targetBox.width - this.currentBox.width) * adaptiveSmooth;
+      this.currentBox.height += (this.targetBox.height - this.currentBox.height) * adaptiveSmooth;
 
       // Draw frames to canvas with auto-tracked blur
       this.drawAnonymizedFrame(vWidth, vHeight);

@@ -1,0 +1,584 @@
+import React, { useState } from 'react';
+import { 
+  Calendar, 
+  Clock, 
+  Video, 
+  Mic, 
+  Phone, 
+  X, 
+  Check, 
+  Sparkles, 
+  User, 
+  Download, 
+  HeartHandshake, 
+  Flame, 
+  ShieldCheck, 
+  Volume2, 
+  VolumeX, 
+  Send,
+  MessageSquare,
+  Lock
+} from 'lucide-react';
+import { Appointment } from '../types';
+import { saveAppointment, getPersistentVerifiedUser } from '../lib/storage';
+
+interface OneOnOneModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onOpenCrisis: () => void;
+}
+
+const AVAILABLE_DATES = [
+  { day: 'Mon', date: 'Oct 19', full: '2026-10-19' },
+  { day: 'Tue', date: 'Oct 20', full: '2026-10-20' },
+  { day: 'Wed', date: 'Oct 21', full: '2026-10-21' },
+  { day: 'Thu', date: 'Oct 22', full: '2026-10-22' },
+  { day: 'Fri', date: 'Oct 23', full: '2026-10-23' },
+];
+
+const TIME_SLOTS = [
+  '10:00 AM - 10:45 AM EST',
+  '11:30 AM - 12:15 PM EST',
+  '02:00 PM - 02:45 PM EST',
+  '03:30 PM - 04:15 PM EST',
+  '05:00 PM - 05:45 PM EST',
+];
+
+export const OneOnOneAppointmentModal: React.FC<OneOnOneModalProps> = ({
+  isOpen,
+  onClose,
+  onOpenCrisis
+}) => {
+  const [activeTab, setActiveTab] = useState<'appointment' | 'expressing'>('appointment');
+  const persistentUser = getPersistentVerifiedUser();
+
+  // Appointment Form State
+  const [selectedDate, setSelectedDate] = useState('2026-10-20');
+  const [selectedTime, setSelectedTime] = useState('02:00 PM - 02:45 PM EST');
+  const [researcher, setResearcher] = useState<'Maya Lin, M.S. (Doctoral Candidate)' | 'Dr. Evelyn Reed, Ph.D. (Faculty Advisor)' | 'First Available'>('Maya Lin, M.S. (Doctoral Candidate)');
+  const [format, setFormat] = useState<'video_face_blurred' | 'audio_only' | 'phone_call'>('video_face_blurred');
+  const [participantAlias, setParticipantAlias] = useState('');
+  const [participantEmail, setParticipantEmail] = useState(persistentUser?.email || '');
+  const [focusArea, setFocusArea] = useState('Navigating marital expectations and spousal pressure');
+  const [notes, setNotes] = useState('');
+  const [bookedAppointment, setBookedAppointment] = useState<Appointment | null>(null);
+
+  // Expressing / Catharsis Room State
+  const [expressingText, setExpressingText] = useState('');
+  const [isAmbientPlaying, setIsAmbientPlaying] = useState(false);
+  const [burnEffect, setBurnEffect] = useState(false);
+  const [expressingFeedback, setExpressingFeedback] = useState<string | null>(null);
+  const audioContextRef = React.useRef<AudioContext | null>(null);
+
+  if (!isOpen) return null;
+
+  // Toggle ambient white noise/rain generator using Web Audio API
+  const toggleAmbientSound = () => {
+    if (isAmbientPlaying) {
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+      setIsAmbientPlaying(false);
+    } else {
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        const ctx = new AudioCtx();
+        audioContextRef.current = ctx;
+
+        // Generate gentle soothing noise buffer (pink/brown noise for calming ambience)
+        const bufferSize = ctx.sampleRate * 2;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        let b0 = 0, b1 = 0, b2 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          data[i] = (b0 + b1 + b2) * 0.05; // soft volume
+        }
+
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        noise.loop = true;
+
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
+
+        noise.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        noise.start(0);
+
+        setIsAmbientPlaying(true);
+      } catch (e) {
+        console.warn('Ambient audio could not start', e);
+      }
+    }
+  };
+
+  const handleBookAppointment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!participantAlias.trim()) {
+      alert('Please enter a pseudonym or initials (e.g. "Alex M."). No real legal name required.');
+      return;
+    }
+
+    const newApt = saveAppointment({
+      type: 'live_interview',
+      researcher,
+      date: selectedDate,
+      timeSlot: selectedTime,
+      format,
+      participantAlias: participantAlias.trim(),
+      participantEmail: participantEmail.trim() || undefined,
+      focusArea,
+      notes: notes.trim() || undefined,
+    });
+
+    setBookedAppointment(newApt);
+  };
+
+  const handleDownloadICS = () => {
+    if (!bookedAppointment) return;
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//PhD Research//Spousal Pressure Study//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+SUMMARY:1-on-1 Qualitative Interview (#${bookedAppointment.appointmentCode})
+DESCRIPTION:Confidential doctoral interview with ${bookedAppointment.researcher}. Meeting Link: ${bookedAppointment.meetingLink}. Participant Alias: ${bookedAppointment.participantAlias}
+DTSTART:20261020T140000Z
+DTEND:20261020T144500Z
+LOCATION:${bookedAppointment.meetingLink}
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR`;
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Interview-${bookedAppointment.appointmentCode}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBurnAndRelease = () => {
+    if (!expressingText.trim()) return;
+    setBurnEffect(true);
+    setTimeout(() => {
+      setExpressingText('');
+      setBurnEffect(false);
+      setExpressingFeedback('Your feelings have been permanently released and dissolved into the void. Zero words stored.');
+    }, 1200);
+  };
+
+  const handleSaveExpressing = () => {
+    if (!expressingText.trim()) return;
+    setExpressingFeedback('Your unprompted reflections have been encrypted and saved as an anonymous qualitative vignette (#EXP-8291).');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-2xl bg-[#FFFDF7] rounded-3xl neo-card p-0 overflow-hidden flex flex-col max-h-[92vh] border-2 border-black">
+        
+        {/* Top Header */}
+        <div className="bg-[#FFEFEA] border-b-2 border-black px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl neo-card bg-[#FF5A36] text-white flex items-center justify-center font-black">
+              <HeartHandshake className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-serif font-black text-base sm:text-xl text-[#121212]">
+                  1-on-1 Session & Expressing Space
+                </h3>
+                <span className="neo-badge bg-[#FFE600] text-black text-[9px] px-2 py-0.5">
+                  Trauma-Informed
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-gray-700 font-bold">
+                Speak directly with a researcher or unburden freely in private.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
+              onClose();
+            }}
+            className="neo-btn bg-white p-1.5 text-gray-800"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Tab switchers */}
+        <div className="px-4 sm:px-6 pt-3 border-b-2 border-black flex gap-2 bg-[#FAF7F2]">
+          <button
+            onClick={() => {
+              setActiveTab('appointment');
+              setBookedAppointment(null);
+            }}
+            className={`pb-2.5 px-3 text-xs sm:text-sm font-black border-b-[3px] transition-all flex items-center gap-1.5 ${
+              activeTab === 'appointment'
+                ? 'border-[#FF5A36] text-[#FF5A36]'
+                : 'border-transparent text-gray-600 hover:text-black'
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Book 1-on-1 Interview</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              setActiveTab('expressing');
+              setExpressingFeedback(null);
+            }}
+            className={`pb-2.5 px-3 text-xs sm:text-sm font-black border-b-[3px] transition-all flex items-center gap-1.5 ${
+              activeTab === 'expressing'
+                ? 'border-[#FF5A36] text-[#FF5A36]'
+                : 'border-transparent text-gray-600 hover:text-black'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Private Expressing Room</span>
+          </button>
+        </div>
+
+        {/* Body Container */}
+        <div className="p-4 sm:p-6 overflow-y-auto irb-scroll flex-1 space-y-4">
+          
+          {/* TAB 1: 1-ON-1 INTERVIEW APPOINTMENT */}
+          {activeTab === 'appointment' && (
+            <>
+              {!bookedAppointment ? (
+                <form onSubmit={handleBookAppointment} className="space-y-4">
+                  <div className="p-3.5 rounded-2xl neo-card-sm bg-[#D4EDDA] border-2 border-black text-xs font-bold text-[#1E7E52] flex items-start gap-2">
+                    <ShieldCheck className="w-4 h-4 shrink-0 text-[#1E7E52] mt-0.5" />
+                    <div>
+                      <span>Strict Confidentiality & Pseudonyms Welcome:</span> You do not need to share legal names. Face-blurring or camera-off is 100% supported during live academic interviews.
+                    </div>
+                  </div>
+
+                  {/* Date Selector */}
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-800 mb-1.5">
+                      1. Select Interview Date
+                    </label>
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {AVAILABLE_DATES.map((d) => (
+                        <button
+                          key={d.full}
+                          type="button"
+                          onClick={() => setSelectedDate(d.full)}
+                          className={`py-2 px-1 text-center rounded-xl border-2 transition-all cursor-pointer ${
+                            selectedDate === d.full 
+                              ? 'bg-[#FF5A36] text-white border-black font-black shadow-[2px_2px_0px_0px_#000]' 
+                              : 'bg-white border-black text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="block text-[10px] font-bold">{d.day}</span>
+                          <span className="block text-xs font-black">{d.date}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Time Slots */}
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-800 mb-1.5">
+                      2. Choose 45-Minute Window
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {TIME_SLOTS.map((slot) => (
+                        <button
+                          key={slot}
+                          type="button"
+                          onClick={() => setSelectedTime(slot)}
+                          className={`py-2 px-3 text-left rounded-xl border-2 text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
+                            selectedTime === slot 
+                              ? 'bg-[#FFE600] text-black border-black shadow-[2px_2px_0px_0px_#000]' 
+                              : 'bg-white border-black text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span>{slot}</span>
+                          {selectedTime === slot && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Interviewer & Medium */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-black uppercase text-gray-800 mb-1.5">
+                        3. Interviewer
+                      </label>
+                      <select
+                        value={researcher}
+                        onChange={(e: any) => setResearcher(e.target.value)}
+                        className="w-full p-2.5 rounded-xl border-2 border-black bg-white text-xs font-bold focus:outline-none shadow-[2px_2px_0px_0px_#000]"
+                      >
+                        <option value="Maya Lin, M.S. (Doctoral Candidate)">Maya Lin, M.S. (PhD Candidate)</option>
+                        <option value="Dr. Evelyn Reed, Ph.D. (Faculty Advisor)">Dr. Evelyn Reed, Ph.D. (Faculty Advisor)</option>
+                        <option value="First Available">First Available Researcher</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black uppercase text-gray-800 mb-1.5">
+                        4. Preferred Format
+                      </label>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setFormat('video_face_blurred')}
+                          className={`flex-1 py-2 px-1 text-center rounded-xl border-2 text-[10px] sm:text-xs font-bold ${
+                            format === 'video_face_blurred' ? 'bg-[#FF5A36] text-white border-black' : 'bg-white border-black'
+                          }`}
+                        >
+                          Face-Blurred
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormat('audio_only')}
+                          className={`flex-1 py-2 px-1 text-center rounded-xl border-2 text-[10px] sm:text-xs font-bold ${
+                            format === 'audio_only' ? 'bg-[#3B82F6] text-white border-black' : 'bg-white border-black'
+                          }`}
+                        >
+                          Audio Only
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormat('phone_call')}
+                          className={`flex-1 py-2 px-1 text-center rounded-xl border-2 text-[10px] sm:text-xs font-bold ${
+                            format === 'phone_call' ? 'bg-[#121212] text-white border-black' : 'bg-white border-black'
+                          }`}
+                        >
+                          Phone / VoIP
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pseudonym & Optional Email */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-black uppercase text-gray-800 mb-1">
+                        5. Your Alias / Preferred Pseudonym *
+                      </label>
+                      <input
+                        type="text"
+                        value={participantAlias}
+                        onChange={(e) => setParticipantAlias(e.target.value)}
+                        placeholder="e.g. Jordan T. or Participant #74"
+                        required
+                        className="w-full p-2.5 rounded-xl border-2 border-black bg-white text-xs font-bold focus:outline-none shadow-[2px_2px_0px_0px_#000]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black uppercase text-gray-800 mb-1">
+                        Optional Reminder Email
+                      </label>
+                      <input
+                        type="email"
+                        value={participantEmail}
+                        onChange={(e) => setParticipantEmail(e.target.value)}
+                        placeholder="For meeting calendar invite only"
+                        className="w-full p-2.5 rounded-xl border-2 border-black bg-white text-xs font-bold focus:outline-none shadow-[2px_2px_0px_0px_#000]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase text-gray-800 mb-1">
+                      Brief Note or Specific Topic You Wish to Touch Upon (Optional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="e.g. Differences in financial vs parental expectations after 8 years of marriage."
+                      className="w-full p-2.5 rounded-xl border-2 border-black bg-white text-xs font-medium focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 neo-btn bg-[#FF5A36] text-white text-sm font-black flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_#000]"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span>Confirm Confidential 1-on-1 Appointment</span>
+                  </button>
+                </form>
+              ) : (
+                /* APPOINTMENT CONFIRMATION CARD */
+                <div className="neo-card p-6 bg-white space-y-4 text-center border-2 border-black animate-fade-in">
+                  <div className="w-14 h-14 rounded-2xl neo-card bg-[#D4EDDA] text-[#1E7E52] flex items-center justify-center mx-auto">
+                    <Check className="w-7 h-7 stroke-[3]" />
+                  </div>
+
+                  <div>
+                    <span className="neo-badge bg-[#FFE600] text-black text-xs px-3 py-1">
+                      Appointment Confirmed
+                    </span>
+                    <h3 className="text-xl font-serif font-black text-gray-900 mt-2">
+                      Live 1-on-1 Academic Session Reserved
+                    </h3>
+                  </div>
+
+                  <div className="p-4 rounded-2xl neo-card-sm bg-[#FFEFEA] text-left space-y-2 border-2 border-black">
+                    <div className="flex items-center justify-between border-b border-black pb-1.5">
+                      <span className="font-mono text-base font-black text-[#FF5A36]">
+                        #{bookedAppointment.appointmentCode}
+                      </span>
+                      <span className="neo-badge bg-white text-gray-800 text-[10px] px-2 py-0.5">
+                        {bookedAppointment.format.replace(/_/g, ' ').toUpperCase()}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-gray-800 font-bold">
+                      <span className="text-gray-500">Date & Time:</span> {bookedAppointment.date} at {bookedAppointment.timeSlot}
+                    </p>
+                    <p className="text-xs text-gray-800 font-bold">
+                      <span className="text-gray-500">Researcher:</span> {bookedAppointment.researcher}
+                    </p>
+                    <p className="text-xs text-gray-800 font-bold">
+                      <span className="text-gray-500">Participant Alias:</span> {bookedAppointment.participantAlias}
+                    </p>
+                    <p className="text-xs text-gray-800 font-bold truncate">
+                      <span className="text-gray-500">Meeting Room:</span> <a href={bookedAppointment.meetingLink} target="_blank" rel="noopener noreferrer" className="text-[#FF5A36] underline">{bookedAppointment.meetingLink}</a>
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2.5 justify-center pt-2">
+                    <button
+                      onClick={handleDownloadICS}
+                      className="neo-btn bg-[#3B82F6] text-white px-4 py-2.5 text-xs flex items-center justify-center gap-1.5"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download Calendar Invite (.ics)</span>
+                    </button>
+                    <button
+                      onClick={() => setBookedAppointment(null)}
+                      className="neo-btn bg-white text-gray-900 px-4 py-2.5 text-xs"
+                    >
+                      Book Another Slot
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* TAB 2: PRIVATE EXPRESSING & CATHARSIS SPACE */}
+          {activeTab === 'expressing' && (
+            <div className="space-y-4">
+              <div className="neo-card-sm bg-[#FFF8F0] p-4 border-2 border-black flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="font-serif font-black text-sm text-gray-900">
+                    The Catharsis & Venting Room
+                  </h4>
+                  <p className="text-xs text-gray-600 font-medium mt-0.5">
+                    An open, unprompted safe haven. Write or unburden your unedited raw thoughts. You can choose to burn it into the void or submit it as an anonymous excerpt.
+                  </p>
+                </div>
+                
+                {/* Ambient Sound Toggle */}
+                <button
+                  type="button"
+                  onClick={toggleAmbientSound}
+                  className={`neo-btn p-2 text-xs flex items-center gap-1.5 shrink-0 ${
+                    isAmbientPlaying ? 'bg-[#34D399] text-black' : 'bg-white text-gray-800'
+                  }`}
+                  title="Toggle Soft Ambient Rain/Noise"
+                >
+                  {isAmbientPlaying ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                  <span className="hidden sm:inline">{isAmbientPlaying ? 'Noise On' : 'Ambience'}</span>
+                </button>
+              </div>
+
+              {expressingFeedback ? (
+                <div className="neo-card p-6 bg-white border-2 border-black text-center space-y-3 animate-fade-in">
+                  <div className="w-12 h-12 rounded-2xl neo-card bg-[#FFE600] text-black flex items-center justify-center mx-auto">
+                    <Sparkles className="w-6 h-6 text-[#FF5A36]" />
+                  </div>
+                  <h4 className="font-serif font-black text-base text-gray-900">Space Cleared</h4>
+                  <p className="text-xs text-gray-700 font-medium max-w-md mx-auto leading-relaxed">
+                    {expressingFeedback}
+                  </p>
+                  <button
+                    onClick={() => setExpressingFeedback(null)}
+                    className="neo-btn bg-[#121212] text-white px-5 py-2 text-xs"
+                  >
+                    Express More Thoughts
+                  </button>
+                </div>
+              ) : (
+                <div className={`space-y-3 transition-all duration-700 ${burnEffect ? 'opacity-0 scale-95 blur-sm' : 'opacity-100'}`}>
+                  <textarea
+                    rows={7}
+                    value={expressingText}
+                    onChange={(e) => setExpressingText(e.target.value)}
+                    placeholder="Write freely without judgment or filter... Everything you felt you could not say aloud. (Remember: avoid real legal names)."
+                    className="w-full p-4 rounded-2xl border-2 border-black bg-white text-xs sm:text-sm font-medium leading-relaxed focus:outline-none shadow-[3px_3px_0px_0px_#000]"
+                  />
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                    {/* Burn into the void */}
+                    <button
+                      type="button"
+                      onClick={handleBurnAndRelease}
+                      disabled={!expressingText.trim() || burnEffect}
+                      className="neo-btn bg-[#121212] hover:bg-black text-white px-5 py-3 text-xs flex items-center justify-center gap-2"
+                    >
+                      <Flame className="w-4 h-4 text-[#FF5A36]" />
+                      <span>Release & Burn (Zero Stored)</span>
+                    </button>
+
+                    {/* Contribute to Study */}
+                    <button
+                      type="button"
+                      onClick={handleSaveExpressing}
+                      disabled={!expressingText.trim() || burnEffect}
+                      className="neo-btn bg-[#FF5A36] text-white px-5 py-3 text-xs flex items-center justify-center gap-2 shadow-[3px_3px_0px_0px_#000]"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>Encrypt & Keep for Study Excerpts</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+
+        {/* Footer */}
+        <div className="bg-[#FAF7F2] border-t-2 border-black px-4 sm:px-6 py-3 flex items-center justify-between text-xs font-bold text-gray-700">
+          <button
+            onClick={onOpenCrisis}
+            className="text-[#FF5A36] hover:underline flex items-center gap-1"
+          >
+            <HeartHandshake className="w-4 h-4" />
+            <span>Crisis Helpline 24/7 (988)</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
+              onClose();
+            }}
+            className="underline"
+          >
+            Close
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+};

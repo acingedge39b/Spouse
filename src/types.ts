@@ -53,3 +53,20 @@ export interface CrisisHelpline {
   url?: string;
   badge?: string;
 }
+
+export interface Appointment {
+  id: string;
+  appointmentCode: string; // e.g. "APT-4821"
+  type: 'live_interview' | 'private_expressing';
+  researcher: 'Maya Lin, M.S. (Doctoral Candidate)' | 'Dr. Evelyn Reed, Ph.D. (Faculty Advisor)' | 'First Available';
+  date: string; // YYYY-MM-DD
+  timeSlot: string; // e.g. "02:00 PM - 02:45 PM EST"
+  format: 'video_face_blurred' | 'audio_only' | 'phone_call';
+  participantAlias: string;
+  participantEmail?: string;
+  focusArea?: string;
+  notes?: string;
+  createdAt: string;
+  status: 'confirmed' | 'completed' | 'cancelled';
+  meetingLink: string;
+}

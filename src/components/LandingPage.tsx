@@ -13,7 +13,10 @@ import {
   Search,
   BookOpen,
   Award,
-  Maximize2
+  Maximize2,
+  Calendar,
+  HeartHandshake,
+  MessageSquare
 } from 'lucide-react';
 import { isUserAlreadyVerified, getPersistentVerifiedUser } from '../lib/storage';
 
@@ -22,26 +25,28 @@ interface LandingPageProps {
   onJumpToRecording?: () => void;
   onOpenWithdrawal: () => void;
   onOpenCrisis: () => void;
+  onOpenAppointment?: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onBegin,
   onJumpToRecording,
   onOpenWithdrawal,
-  onOpenCrisis
+  onOpenCrisis,
+  onOpenAppointment
 }) => {
   const isVerified = isUserAlreadyVerified();
   const verifiedUser = getPersistentVerifiedUser();
 
   return (
     <div className="relative overflow-hidden w-full">
-      <section className="pt-6 sm:pt-10 pb-12 sm:pb-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-6 sm:space-y-10">
+      <section className="pt-4 sm:pt-10 pb-12 sm:pb-16 px-3 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-6 sm:space-y-10">
         
         {/* FAST-TRACK RETURNING PARTICIPANT BANNER (Permanent Cookies / No Relogin) */}
         {isVerified && onJumpToRecording && (
           <div className="neo-card bg-[#D4EDDA] border-2 border-black p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl neo-card bg-white text-[#1E7E52] flex items-center justify-center font-black">
+              <div className="w-10 h-10 rounded-xl neo-card bg-white text-[#1E7E52] flex items-center justify-center font-black shrink-0">
                 ✓
               </div>
               <div>
@@ -61,7 +66,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             <button
               onClick={onJumpToRecording}
-              className="w-full sm:w-auto neo-btn bg-[#FF5A36] text-white px-5 py-2.5 text-xs sm:text-sm flex items-center justify-center gap-2"
+              className="w-full sm:w-auto neo-btn bg-[#FF5A36] text-white px-5 py-2.5 text-xs sm:text-sm flex items-center justify-center gap-2 shadow-[3px_3px_0px_0px_#000]"
             >
               <Maximize2 className="w-4 h-4" />
               <span>Open Fullscreen Studio</span>
@@ -73,13 +78,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="text-center max-w-3xl mx-auto space-y-4 sm:space-y-6">
           
           {/* Neobrutalist Tag pill */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 neo-badge bg-[#FFE600] text-[#121212] text-xs">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 neo-badge bg-[#FFE600] text-[#121212] text-xs">
             <Sparkles className="w-3.5 h-3.5 text-[#FF5A36] shrink-0" />
             <span>PhD Qualitative Dissertation • IRB #2026-SP84</span>
           </div>
 
           {/* Main Title with Neobrutalist bold flair */}
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-serif font-black text-[#121212] tracking-tight leading-[1.15]">
+          <h1 className="text-2xl sm:text-5xl md:text-6xl font-serif font-black text-[#121212] tracking-tight leading-[1.15]">
             Lived Experiences of <br />
             <span className="relative inline-block bg-[#FF5A36] text-white px-3 py-1 rounded-2xl neo-badge -rotate-1 mt-1">
               Spousal Pressure
@@ -88,7 +93,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </h1>
 
           {/* Subtitle */}
-          <p className="text-sm sm:text-lg text-gray-700 font-medium leading-relaxed max-w-2xl mx-auto">
+          <p className="text-xs sm:text-base md:text-lg text-gray-700 font-medium leading-relaxed max-w-2xl mx-auto px-2">
             A secure, trauma-informed academic study collecting asynchronous video & audio reflections. 
             Real-time automatic face blurring keeps unblurred footage strictly on your device.
           </p>
@@ -97,7 +102,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs font-bold">
             <span className="neo-badge bg-white text-gray-900 px-3 py-1 flex items-center gap-1.5">
               <EyeOff className="w-3.5 h-3.5 text-[#1E7E52]" />
-              <span>Full-Screen Auto-Blur</span>
+              <span>Auto-Face Blur</span>
             </span>
             <span className="neo-badge bg-white text-gray-900 px-3 py-1 flex items-center gap-1.5">
               <Lock className="w-3.5 h-3.5 text-[#3B82F6]" />
@@ -105,36 +110,46 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </span>
             <span className="neo-badge bg-white text-gray-900 px-3 py-1 flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-[#FF5A36]" />
-              <span>Self-Paced (8-12 min)</span>
+              <span>Self-Paced</span>
             </span>
           </div>
 
-          {/* Actions */}
-          <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 max-w-md mx-auto sm:max-w-none">
+          {/* Actions - Mobile First Stacked & Wide */}
+          <div className="pt-2 sm:pt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3 max-w-md mx-auto sm:max-w-none">
             {isVerified && onJumpToRecording ? (
               <button
                 onClick={onJumpToRecording}
-                className="neo-btn bg-[#FF5A36] text-white px-8 py-4 text-sm sm:text-base flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_#000]"
+                className="w-full sm:w-auto neo-btn bg-[#FF5A36] text-white px-7 py-3.5 sm:py-4 text-xs sm:text-base flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_#000]"
               >
                 <span>Continue to Recording Studio</span>
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             ) : (
               <button
                 onClick={onBegin}
-                className="neo-btn bg-[#FF5A36] text-white px-8 py-4 text-sm sm:text-base flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_#000]"
+                className="w-full sm:w-auto neo-btn bg-[#FF5A36] text-white px-7 py-3.5 sm:py-4 text-xs sm:text-base flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_#000]"
               >
                 <span>Begin Participation</span>
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            )}
+
+            {onOpenAppointment && (
+              <button
+                onClick={onOpenAppointment}
+                className="w-full sm:w-auto neo-btn bg-[#FFE600] text-black px-5 py-3 sm:py-4 text-xs sm:text-sm flex items-center justify-center gap-2 font-black shadow-[3px_3px_0px_0px_#000]"
+              >
+                <Calendar className="w-4 h-4 text-black" />
+                <span>1-on-1 Interview / Expressing</span>
               </button>
             )}
 
             <button
               onClick={onOpenCrisis}
-              className="neo-btn bg-[#FFFDF7] text-[#9A3412] px-6 py-4 text-xs sm:text-sm flex items-center justify-center gap-2"
+              className="w-full sm:w-auto neo-btn bg-[#FFFDF7] text-[#9A3412] px-5 py-3 sm:py-4 text-xs sm:text-sm flex items-center justify-center gap-2"
             >
               <Heart className="w-4 h-4 text-[#FF5A36]" />
-              <span>24/7 Crisis & Support</span>
+              <span>24/7 Crisis Support</span>
             </button>
           </div>
 
@@ -244,6 +259,36 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
           </div>
         </div>
+
+        {/* 1-on-1 Appointment & Expressing Suite Feature Card */}
+        {onOpenAppointment && (
+          <div className="neo-card p-5 sm:p-7 bg-[#FFF8F0] border-2 border-black flex flex-col md:flex-row items-start md:items-center justify-between gap-5 animate-fade-in">
+            <div className="space-y-2 max-w-xl">
+              <div className="flex items-center gap-2">
+                <span className="neo-badge bg-[#FFE600] text-black text-[10px] px-2.5 py-0.5">
+                  Alternative Participation Mode
+                </span>
+                <span className="neo-badge bg-[#D4EDDA] text-[#1E7E52] text-[10px] px-2 py-0.5">
+                  100% Confidential
+                </span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-serif font-black text-gray-900">
+                Prefer a Live 1-on-1 Session or Private Expressing?
+              </h3>
+              <p className="text-xs text-gray-700 font-medium leading-relaxed">
+                Rather than recording alone, you can reserve a confidential 45-minute academic interview with doctoral researchers (with optional face blurring / camera off), or enter our unprompted <span className="font-bold">Catharsis & Expressing Room</span> equipped with ambient rain noise and permanent "Burn & Release".
+              </p>
+            </div>
+
+            <button
+              onClick={onOpenAppointment}
+              className="w-full md:w-auto neo-btn bg-[#FF5A36] text-white px-6 py-3.5 text-xs sm:text-sm font-black flex items-center justify-center gap-2 shrink-0 shadow-[3px_3px_0px_0px_#000]"
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Book Session or Express</span>
+            </button>
+          </div>
+        )}
 
         {/* Academic Affiliations */}
         <div className="pt-4 text-center">

@@ -220,7 +220,7 @@ export const RecordingRoom: React.FC<RecordingRoomProps> = ({
 
   // Timer
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (recordingState === 'recording') {
       interval = setInterval(() => {
         setElapsedTime(prev => prev + 1);
@@ -448,10 +448,8 @@ export const RecordingRoom: React.FC<RecordingRoomProps> = ({
   return (
     <div 
       ref={studioContainerRef}
-      className={`relative w-full bg-[#141517] flex flex-col justify-between overflow-hidden select-none transition-all ${
-        isFullscreen 
-          ? 'fixed inset-0 z-50 h-screen' 
-          : 'h-[calc(100vh-68px)] min-h-[580px] max-h-[960px] rounded-3xl neo-card p-0 my-2 max-w-7xl mx-auto'
+      className={`fixed inset-0 z-40 h-[100dvh] w-screen bg-[#121316] flex flex-col justify-between overflow-hidden select-none transition-all ${
+        isFullscreen ? 'z-50' : ''
       }`}
     >
       {/* Hidden raw video element */}
@@ -463,59 +461,60 @@ export const RecordingRoom: React.FC<RecordingRoomProps> = ({
       />
 
       {/* 1. TOP FLOATING NEOBRUTALIST HEADER BAR */}
-      <div className="absolute top-3 sm:top-4 left-3 right-3 sm:left-6 sm:right-6 z-30 flex items-center justify-between pointer-events-none gap-2">
+      <div className="absolute top-2.5 sm:top-4 left-2.5 right-2.5 sm:left-6 sm:right-6 z-30 flex items-center justify-between pointer-events-none gap-1.5 sm:gap-2">
         
         {/* Left: Interactive Prompt Badge */}
-        <div className="pointer-events-auto flex items-center gap-2 max-w-[65%] sm:max-w-[50%]">
+        <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 max-w-[60%] sm:max-w-[45%]">
           <div 
             onClick={() => setIsPromptsDrawerOpen(!isPromptsDrawerOpen)}
-            className="neo-btn bg-[#FFFDF7] text-[#121212] px-3.5 py-2 flex items-center gap-2 cursor-pointer hover:bg-white truncate"
+            className="neo-btn bg-[#FFFDF7] text-[#121212] px-2.5 sm:px-3.5 py-1.5 sm:py-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer hover:bg-white truncate"
           >
-            <span className="neo-badge bg-[#FF5A36] text-white text-[10px] px-2 py-0.5 shrink-0">
+            <span className="neo-badge bg-[#FF5A36] text-white text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.2 shrink-0">
               {currentPrompt.num}
             </span>
-            <span className="text-xs font-extrabold truncate hidden sm:inline">
+            <span className="text-[11px] sm:text-xs font-black truncate">
               {currentPrompt.title}
             </span>
             <ChevronDown className="w-3.5 h-3.5 shrink-0 text-gray-500" />
           </div>
 
-          {/* Mode Switcher */}
+          {/* Mode Switcher - Accessible on both Mobile and Desktop */}
           {recordingState === 'idle' && (
-            <div className="hidden md:flex bg-white neo-pill p-1 gap-1">
+            <div className="flex bg-white neo-pill p-0.5 sm:p-1 gap-0.5 sm:gap-1 shrink-0">
               <button
                 onClick={() => setActiveMode('video')}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                className={`px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold transition-all ${
                   activeMode === 'video' ? 'bg-[#FF5A36] text-white' : 'text-gray-700'
                 }`}
               >
-                Video (Auto-Blur)
+                Video
               </button>
               <button
                 onClick={() => setActiveMode('audio')}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                className={`px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold transition-all ${
                   activeMode === 'audio' ? 'bg-[#3B82F6] text-white' : 'text-gray-700'
                 }`}
               >
-                Audio-Only
+                Audio
               </button>
             </div>
           )}
         </div>
 
-        {/* Right Controls: Auto-Track Pill & Fullscreen Toggle */}
-        <div className="pointer-events-auto flex items-center gap-2">
+        {/* Right Controls: Auto-Track Pill, Filters & Exit */}
+        <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2">
           {activeMode === 'video' && recordingState !== 'review' && (
-            <div className="neo-badge bg-[#D4EDDA] text-[#1E7E52] px-3 py-1 text-[11px] flex items-center gap-1.5 hidden xs:flex">
+            <div className="neo-badge bg-[#D4EDDA] text-[#1E7E52] px-2 sm:px-3 py-1 text-[10px] sm:text-[11px] flex items-center gap-1 sm:gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#1E7E52] animate-pulse"></span>
-              <span>Auto-Tracking Locked</span>
+              <span className="hidden xs:inline">Auto-Tracking Locked</span>
+              <span className="xs:hidden">Locked</span>
             </div>
           )}
 
           {activeMode === 'video' && recordingState !== 'review' && (
             <button
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className="neo-btn bg-white px-3 py-2 text-xs flex items-center gap-1.5 text-gray-800"
+              className="neo-btn bg-white px-2 sm:px-3 py-1.5 sm:py-2 text-xs flex items-center gap-1 text-gray-800"
               title="Blur Filter Options"
             >
               <Sliders className="w-3.5 h-3.5 text-[#FF5A36]" />
@@ -525,19 +524,20 @@ export const RecordingRoom: React.FC<RecordingRoomProps> = ({
 
           <button
             onClick={toggleFullscreen}
-            className="neo-btn bg-white p-2 text-gray-800"
-            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen Studio'}
+            className="neo-btn bg-white p-1.5 sm:p-2 text-gray-800"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter True Fullscreen'}
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
           </button>
 
-          {onExit && !isFullscreen && (
+          {onExit && (
             <button
               onClick={onExit}
-              className="neo-btn bg-white p-2 text-gray-800"
-              title="Exit Recording Room"
+              className="neo-btn bg-white px-2 sm:px-2.5 py-1.5 sm:py-2 text-xs text-gray-800 flex items-center gap-1 font-bold"
+              title="Exit Recording Studio"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Exit</span>
             </button>
           )}
         </div>
@@ -689,28 +689,28 @@ export const RecordingRoom: React.FC<RecordingRoomProps> = ({
           <>
             {recordingState !== 'review' ? (
               <div className="relative w-full h-full flex items-center justify-center">
-                {/* Real-time Blurred Canvas Viewport */}
+                {/* Real-time Blurred Canvas Viewport: Full screen mobile cover */}
                 <canvas
                   ref={canvasElementRef}
-                  className="w-full h-full object-contain bg-black"
+                  className="w-full h-full object-cover sm:object-contain bg-black"
                 />
 
-                {/* Floating active tracking subtitle */}
-                <div className="absolute bottom-24 sm:bottom-28 z-20 neo-badge bg-black/80 text-white px-3.5 py-1.5 text-[11px] sm:text-xs flex items-center gap-2 backdrop-blur-md">
-                  <span className="w-2 h-2 rounded-full bg-[#34D399] animate-pulse"></span>
-                  <span>Face Auto-Tracking Active • Unblurred pixels never leave your device</span>
+                {/* Floating active tracking subtitle & coordinates */}
+                <div className="absolute bottom-24 sm:bottom-28 z-20 neo-badge bg-black/85 text-white px-3 sm:px-4 py-1.5 text-[10px] sm:text-xs flex items-center gap-2 backdrop-blur-md border-black">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#34D399] animate-pulse"></span>
+                  <span>Face Auto-Tracking Active: Locked • Raw Video Never Leaves Device</span>
                 </div>
               </div>
             ) : (
               /* Playback Review View */
-              <div className="relative w-full h-full flex flex-col items-center justify-center p-4 bg-black">
+              <div className="relative w-full h-full flex flex-col items-center justify-center p-2 sm:p-4 bg-black">
                 {recordedBlobUrl && (
                   <video
                     ref={reviewVideoRef}
                     src={recordedBlobUrl}
                     controls
                     playsInline
-                    className="w-full h-full max-h-[70vh] object-contain rounded-2xl neo-card p-0"
+                    className="w-full h-full max-h-[75vh] object-contain rounded-2xl neo-card p-0"
                   />
                 )}
               </div>
@@ -766,107 +766,120 @@ export const RecordingRoom: React.FC<RecordingRoomProps> = ({
       </div>
 
       {/* 3. BOTTOM FLOATING NEOBRUTALIST RECORDING CONTROLS DOCK */}
-      <div className="absolute bottom-4 left-3 right-3 sm:left-6 sm:right-6 z-30 flex items-center justify-between pointer-events-none">
+      <div className="absolute bottom-3 sm:bottom-5 left-2.5 right-2.5 sm:left-6 sm:right-6 z-30 flex flex-col items-center gap-2 pointer-events-none">
         
-        {/* Left: Live Audio Meter & Status */}
-        <div className="pointer-events-auto neo-card bg-[#FFFDF7] px-3.5 py-2 hidden sm:flex items-center gap-2.5">
-          <Volume2 className="w-4 h-4 text-gray-700" />
-          <div className="w-20 bg-gray-200 h-2.5 rounded-full overflow-hidden border border-black">
-            <div
-              className="bg-[#34D399] h-full transition-all duration-75"
-              style={{ width: `${audioLevel}%` }}
-            />
+        {/* Floating Mobile Timer Pill (when recording or paused) */}
+        {(recordingState === 'recording' || recordingState === 'paused') && (
+          <div className="pointer-events-auto sm:hidden neo-badge bg-[#121212] text-white px-3.5 py-1 text-xs font-mono font-black flex items-center gap-2 shadow-[2px_2px_0px_0px_#000]">
+            <span className={`w-2 h-2 rounded-full ${recordingState === 'recording' ? 'bg-red-500 animate-pulse' : 'bg-yellow-400'}`}></span>
+            <span>{recordingState === 'recording' ? 'REC' : 'PAUSED'} {formatTime(elapsedTime)}</span>
           </div>
-          <span className="font-mono text-xs font-bold text-gray-800">
-            {formatTime(elapsedTime)}
-          </span>
-        </div>
+        )}
 
-        {/* Center: Large Thumb-Friendly Control Buttons */}
-        <div className="pointer-events-auto mx-auto flex items-center gap-2 sm:gap-3">
-          {recordingState === 'idle' && (
-            <button
-              onClick={handleStartRecording}
-              className="neo-btn bg-[#FF5A36] text-white px-7 py-3.5 text-sm sm:text-base flex items-center gap-2.5 min-h-[50px] shadow-[4px_4px_0px_0px_#000]"
-            >
-              <Play className="w-5 h-5 fill-white" />
-              <span>Start Recording</span>
-            </button>
-          )}
+        <div className="w-full flex items-center justify-between gap-2 pointer-events-none">
+          {/* Left: Live Audio Meter & Status (Desktop) */}
+          <div className="pointer-events-auto neo-card bg-[#FFFDF7] px-3.5 py-2 hidden sm:flex items-center gap-2.5">
+            <Volume2 className="w-4 h-4 text-gray-700" />
+            <div className="w-20 bg-gray-200 h-2.5 rounded-full overflow-hidden border border-black">
+              <div
+                className="bg-[#34D399] h-full transition-all duration-75"
+                style={{ width: `${audioLevel}%` }}
+              />
+            </div>
+            <span className="font-mono text-xs font-bold text-gray-800">
+              {formatTime(elapsedTime)}
+            </span>
+          </div>
 
-          {recordingState === 'recording' && (
-            <>
+          {/* Center: Large Thumb-Friendly Control Buttons */}
+          <div className="pointer-events-auto mx-auto flex items-center justify-center gap-2 sm:gap-3 w-full sm:w-auto">
+            {recordingState === 'idle' && (
               <button
-                onClick={handlePauseRecording}
-                className="neo-btn bg-[#FFE600] text-black px-4 sm:px-5 py-3 text-xs sm:text-sm flex items-center gap-2 min-h-[48px]"
+                onClick={handleStartRecording}
+                className="w-full sm:w-auto neo-btn bg-[#FF5A36] text-white px-6 sm:px-8 py-3.5 text-sm sm:text-base flex items-center justify-center gap-2.5 min-h-[50px] shadow-[4px_4px_0px_0px_#000] font-black"
               >
-                <Pause className="w-4 h-4 fill-black" />
-                <span>Pause</span>
+                <Play className="w-5 h-5 fill-white shrink-0" />
+                <span>Start Recording ({activeMode === 'video' ? 'Video' : 'Audio'})</span>
               </button>
-              <button
-                onClick={handleStopRecording}
-                className="neo-btn bg-[#EF4444] text-white px-6 sm:px-7 py-3 text-xs sm:text-sm flex items-center gap-2 min-h-[48px] animate-pulse"
-              >
-                <Square className="w-4 h-4 fill-white" />
-                <span>Stop & Review</span>
-              </button>
-            </>
-          )}
+            )}
 
-          {recordingState === 'paused' && (
-            <>
-              <button
-                onClick={handleResumeRecording}
-                className="neo-btn bg-[#34D399] text-black px-5 py-3 text-xs sm:text-sm flex items-center gap-2 min-h-[48px]"
-              >
-                <Play className="w-4 h-4 fill-black" />
-                <span>Resume</span>
-              </button>
-              <button
-                onClick={handleStopRecording}
-                className="neo-btn bg-[#EF4444] text-white px-5 py-3 text-xs sm:text-sm flex items-center gap-2 min-h-[48px]"
-              >
-                <Square className="w-4 h-4 fill-white" />
-                <span>Finish</span>
-              </button>
-            </>
-          )}
+            {recordingState === 'recording' && (
+              <div className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={handlePauseRecording}
+                  className="flex-1 sm:flex-initial neo-btn bg-[#FFE600] text-black px-4 sm:px-5 py-3 text-xs sm:text-sm flex items-center justify-center gap-2 min-h-[48px]"
+                >
+                  <Pause className="w-4 h-4 fill-black" />
+                  <span>Pause</span>
+                </button>
+                <button
+                  onClick={handleStopRecording}
+                  className="flex-1 sm:flex-initial neo-btn bg-[#EF4444] text-white px-5 sm:px-7 py-3 text-xs sm:text-sm flex items-center justify-center gap-2 min-h-[48px] animate-pulse"
+                >
+                  <Square className="w-4 h-4 fill-white" />
+                  <span>Stop & Review</span>
+                </button>
+              </div>
+            )}
 
-          {recordingState === 'review' && (
-            <>
-              <button
-                onClick={handleReRecord}
-                disabled={isSubmitting}
-                className="neo-btn bg-white text-gray-900 px-4 py-3 text-xs sm:text-sm flex items-center gap-1.5 min-h-[48px]"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>Re-record</span>
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="neo-btn bg-[#34D399] text-gray-950 px-6 sm:px-8 py-3 text-xs sm:text-sm flex items-center gap-2 min-h-[48px] shadow-[4px_4px_0px_0px_#000]"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                    <span>Encrypting & Storing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4 stroke-[3]" />
-                    <span>Confirm & Submit</span>
-                  </>
-                )}
-              </button>
-            </>
-          )}
-        </div>
+            {recordingState === 'paused' && (
+              <div className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={handleResumeRecording}
+                  className="flex-1 sm:flex-initial neo-btn bg-[#34D399] text-black px-4 sm:px-5 py-3 text-xs sm:text-sm flex items-center justify-center gap-2 min-h-[48px]"
+                >
+                  <Play className="w-4 h-4 fill-black" />
+                  <span>Resume</span>
+                </button>
+                <button
+                  onClick={handleStopRecording}
+                  className="flex-1 sm:flex-initial neo-btn bg-[#EF4444] text-white px-5 py-3 text-xs sm:text-sm flex items-center justify-center gap-2 min-h-[48px]"
+                >
+                  <Square className="w-4 h-4 fill-white" />
+                  <span>Finish</span>
+                </button>
+              </div>
+            )}
 
-        {/* Right: Crisis & Help */}
-        <div className="pointer-events-auto neo-btn bg-[#FFEFEA] px-3.5 py-2 hidden sm:flex items-center gap-1.5 text-xs text-[#9A3412] cursor-pointer" onClick={onOpenCrisis}>
-          <span className="w-2 h-2 rounded-full bg-[#FF5A36]"></span>
-          <span>Crisis Support (24/7)</span>
+            {recordingState === 'review' && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={handleReRecord}
+                  disabled={isSubmitting}
+                  className="neo-btn bg-white text-gray-900 px-4 py-3 text-xs sm:text-sm flex items-center justify-center gap-1.5 min-h-[48px] font-bold"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Re-record</span>
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="neo-btn bg-[#34D399] text-gray-950 px-6 sm:px-8 py-3 text-xs sm:text-sm flex items-center justify-center gap-2 min-h-[48px] shadow-[4px_4px_0px_0px_#000] font-black"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                      <span>Encrypting & Storing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 stroke-[3]" />
+                      <span>Confirm & Submit</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Crisis & Help */}
+          <div 
+            className="pointer-events-auto neo-btn bg-[#FFEFEA] px-3 sm:px-3.5 py-2 hidden sm:flex items-center gap-1.5 text-xs text-[#9A3412] cursor-pointer" 
+            onClick={onOpenCrisis}
+          >
+            <span className="w-2 h-2 rounded-full bg-[#FF5A36]"></span>
+            <span>Crisis Support (24/7)</span>
+          </div>
         </div>
       </div>
 
