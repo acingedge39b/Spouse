@@ -30,3 +30,7 @@ dist-ssr
 
 # Vercel
 .vercel
+
+# Local push scripts
+push.sh
+*.sh
