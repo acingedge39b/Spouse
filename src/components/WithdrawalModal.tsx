@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Trash2, X, Search, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
-import { getSubmissionByCode, withdrawSubmission } from '../lib/storage';
+import { Trash2, X, Search, AlertCircle, CheckCircle2, ShieldCheck, RefreshCw } from 'lucide-react';
+import { getSubmissionByCodeAsync, withdrawSubmissionAsync } from '../lib/storage';
 import { Submission } from '../types';
 
 interface WithdrawalModalProps {
@@ -11,12 +11,14 @@ interface WithdrawalModalProps {
 export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClose }) => {
   const [code, setCode] = useState('');
   const [searchedSub, setSearchedSub] = useState<Submission | null | undefined>(undefined);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsDeleted(false);
@@ -26,23 +28,37 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
       return;
     }
 
-    const found = getSubmissionByCode(code);
-    if (!found) {
-      setSearchedSub(null);
-      setError('No submission found matching this reference code.');
-    } else {
-      setSearchedSub(found);
+    setIsSearching(true);
+    try {
+      const found = await getSubmissionByCodeAsync(code);
+      setIsSearching(false);
+      if (!found) {
+        setSearchedSub(null);
+        setError('No submission found matching this reference code in the database.');
+      } else {
+        setSearchedSub(found);
+      }
+    } catch (err: any) {
+      setIsSearching(false);
+      setError('Failed to query database. Please try again.');
     }
   };
 
-  const handleExecuteWithdrawal = () => {
+  const handleExecuteWithdrawal = async () => {
     if (!searchedSub) return;
-    const success = withdrawSubmission(searchedSub.submissionCode);
-    if (success) {
-      setIsDeleted(true);
-      setSearchedSub(undefined);
-    } else {
-      setError('Failed to purge data. Please try again.');
+    setIsDeleting(true);
+    try {
+      const success = await withdrawSubmissionAsync(searchedSub.submissionCode);
+      setIsDeleting(false);
+      if (success) {
+        setIsDeleted(true);
+        setSearchedSub(undefined);
+      } else {
+        setError('Failed to purge data from database. Please try again.');
+      }
+    } catch {
+      setIsDeleting(false);
+      setError('Failed to purge data from database. Please try again.');
     }
   };
 
@@ -105,9 +121,11 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                   </div>
                   <button
                     type="submit"
-                    className="neo-btn bg-[#121212] text-white px-4 py-3 text-xs"
+                    disabled={isSearching}
+                    className="neo-btn bg-[#121212] text-white px-4 py-3 text-xs flex items-center justify-center gap-1.5"
                   >
-                    Find Code
+                    {isSearching ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
+                    <span>{isSearching ? 'Searching...' : 'Find Code'}</span>
                   </button>
                 </div>
               </form>
@@ -127,7 +145,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                       {searchedSub.submissionCode}
                     </span>
                     <span className="neo-badge bg-[#D4EDDA] text-[#1E7E52] text-[10px] px-2 py-0.5">
-                      Located
+                      Located in Database
                     </span>
                   </div>
 
@@ -140,10 +158,11 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                   <div className="pt-2">
                     <button
                       onClick={handleExecuteWithdrawal}
+                      disabled={isDeleting}
                       className="w-full py-3 neo-btn bg-[#EF4444] text-white text-xs flex items-center justify-center gap-2 shadow-[3px_3px_0px_0px_#000]"
                     >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Permanently Erase from Study</span>
+                      {isDeleting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      <span>{isDeleting ? 'Erasing from Cloudflare D1...' : 'Permanently Erase from Study'}</span>
                     </button>
                   </div>
                 </div>

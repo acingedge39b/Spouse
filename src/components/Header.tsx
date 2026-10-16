@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { HeartHandshake, Database, Trash2, GraduationCap, Home, Menu, X, Calendar, MessageSquare } from 'lucide-react';
+import { HeartHandshake, Trash2, Home, Menu, X, Calendar } from 'lucide-react';
 import { StudyStep } from '../types';
-import { isUserAlreadyVerified, getPersistentVerifiedUser, clearActiveSessionToken } from '../lib/storage';
+import { Logo } from './Logo';
 
 interface HeaderProps {
   currentStep: StudyStep;
@@ -23,15 +23,6 @@ export const Header: React.FC<HeaderProps> = ({
   isInvestigatorMode = false
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const alreadyVerified = isUserAlreadyVerified();
-  const verifiedUser = getPersistentVerifiedUser();
-
-  const handleClearSession = () => {
-    if (confirm('Clear saved login cookie on this device?')) {
-      clearActiveSessionToken();
-      window.location.reload();
-    }
-  };
 
   return (
     <header className="sticky top-0 z-40 bg-[#FAF7F2] border-b-[2.5px] border-[#121212]">
@@ -44,11 +35,6 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           
           <div className="flex items-center gap-3 shrink-0">
-            {alreadyVerified && verifiedUser && (
-              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
-                ✓ Saved Session: {verifiedUser.email.slice(0, 14)}...
-              </span>
-            )}
             <button
               onClick={onOpenWithdrawal}
               className="text-gray-300 hover:text-white underline text-[10px] sm:text-[11px] flex items-center gap-1"
@@ -63,31 +49,14 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Main Header */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-2">
         
-        {/* Brand identity */}
-        <div
+        {/* Academic Brand Identity & Official Emblem */}
+        <Logo 
+          variant="full" 
           onClick={() => {
             setMobileMenuOpen(false);
             onNavigate('landing');
-          }}
-          className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group min-w-0"
-        >
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl neo-card bg-[#FF5A36] text-white flex items-center justify-center font-black text-base sm:text-lg group-hover:scale-105 transition-transform shrink-0">
-            <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-          <div className="truncate">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="font-serif font-black text-sm sm:text-lg md:text-xl text-[#121212] tracking-tight truncate">
-                Marital Pressures Study
-              </span>
-              <span className="neo-badge bg-[#FFE600] text-[#121212] text-[9px] px-1.5 sm:px-2 py-0.2 shrink-0">
-                PhD
-              </span>
-            </div>
-            <p className="text-[9px] sm:text-[11px] text-gray-600 font-bold truncate">
-              Qualitative Portal • Client-Side Auto-Blurred
-            </p>
-          </div>
-        </div>
+          }} 
+        />
 
         {/* Action Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
@@ -119,16 +88,15 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="xs:hidden">Help</span>
           </button>
 
-          {/* Investigator Toggle */}
-          <button
-            onClick={onOpenInvestigator}
-            className={`neo-btn hidden lg:flex items-center gap-1.5 px-3 py-2 text-xs ${
-              isInvestigatorMode ? 'bg-[#121212] text-white' : 'bg-white text-gray-800'
-            }`}
-          >
-            <Database className="w-3.5 h-3.5 text-[#FF5A36]" />
-            <span>Investigator Portal</span>
-          </button>
+          {/* Show Exit Admin button only when already in admin mode */}
+          {isInvestigatorMode && (
+            <button
+              onClick={onOpenInvestigator}
+              className="neo-btn bg-[#121212] text-white px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
+            >
+              <span>Exit Admin</span>
+            </button>
+          )}
 
           {currentStep !== 'landing' && !isInvestigatorMode && (
             <button
@@ -154,18 +122,6 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#FFFDF7] border-b-2 border-black px-4 py-3 space-y-2 animate-fade-in text-xs font-bold">
-          {alreadyVerified && (
-            <div className="p-2.5 rounded-xl neo-card-sm bg-[#D4EDDA] text-[#1E7E52] flex items-center justify-between">
-              <span>✓ Cookie Session Remembered</span>
-              <button 
-                onClick={handleClearSession}
-                className="text-[10px] underline text-gray-600 font-normal"
-              >
-                Clear
-              </button>
-            </div>
-          )}
-
           {onOpenAppointment && (
             <button
               onClick={() => {
@@ -184,18 +140,6 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          <button
-            onClick={() => {
-              setMobileMenuOpen(false);
-              onOpenInvestigator();
-            }}
-            className="w-full py-2.5 px-3 rounded-xl neo-btn bg-white text-left flex items-center justify-between"
-          >
-            <span className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-[#FF5A36]" />
-              Investigator & Audit Portal
-            </span>
-          </button>
 
           <button
             onClick={() => {

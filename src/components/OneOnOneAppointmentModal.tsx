@@ -17,10 +17,20 @@ import {
   VolumeX, 
   Send,
   MessageSquare,
-  Lock
+  Lock,
+  AlertCircle,
+  RefreshCw,
+  Mail,
+  CheckCircle2
 } from 'lucide-react';
 import { Appointment } from '../types';
-import { saveAppointment, getPersistentVerifiedUser } from '../lib/storage';
+import { 
+  saveAppointmentAsync, 
+  logCatharsisApi, 
+  getPersistentVerifiedUser, 
+  sendOtpApi, 
+  verifyOtpApi 
+} from '../lib/storage';
 
 interface OneOnOneModalProps {
   isOpen: boolean;
@@ -28,13 +38,33 @@ interface OneOnOneModalProps {
   onOpenCrisis: () => void;
 }
 
-const AVAILABLE_DATES = [
-  { day: 'Mon', date: 'Oct 19', full: '2026-10-19' },
-  { day: 'Tue', date: 'Oct 20', full: '2026-10-20' },
-  { day: 'Wed', date: 'Oct 21', full: '2026-10-21' },
-  { day: 'Thu', date: 'Oct 22', full: '2026-10-22' },
-  { day: 'Fri', date: 'Oct 23', full: '2026-10-23' },
-];
+function generateAvailableDates(): { day: string; date: string; full: string }[] {
+  const dates: { day: string; date: string; full: string }[] = [];
+  const now = new Date();
+  let dayOffset = 1;
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  while (dates.length < 5) {
+    const d = new Date(now);
+    d.setDate(now.getDate() + dayOffset);
+    const dayOfWeek = d.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      dates.push({
+        day: dayNames[dayOfWeek],
+        date: `${monthNames[d.getMonth()]} ${d.getDate()}`,
+        full: `${year}-${month}-${day}`
+      });
+    }
+    dayOffset++;
+  }
+  return dates;
+}
+
+const AVAILABLE_DATES = generateAvailableDates();
 
 const TIME_SLOTS = [
   '10:00 AM - 10:45 AM EST',
@@ -51,17 +81,41 @@ export const OneOnOneAppointmentModal: React.FC<OneOnOneModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'appointment' | 'expressing'>('appointment');
   const persistentUser = getPersistentVerifiedUser();
+  const isAlreadyVerified = !!(persistentUser?.email && persistentUser.email.toLowerCase().endsWith('@gmail.com'));
 
   // Appointment Form State
-  const [selectedDate, setSelectedDate] = useState('2026-10-20');
+  const [selectedDate, setSelectedDate] = useState(AVAILABLE_DATES[0]?.full || '');
   const [selectedTime, setSelectedTime] = useState('02:00 PM - 02:45 PM EST');
   const [researcher, setResearcher] = useState<'Maya Lin, M.S. (Doctoral Candidate)' | 'Dr. Evelyn Reed, Ph.D. (Faculty Advisor)' | 'First Available'>('Maya Lin, M.S. (Doctoral Candidate)');
   const [format, setFormat] = useState<'video_face_blurred' | 'audio_only' | 'phone_call'>('video_face_blurred');
   const [participantAlias, setParticipantAlias] = useState('');
-  const [participantEmail, setParticipantEmail] = useState(persistentUser?.email || '');
+  const [participantEmail, setParticipantEmail] = useState(isAlreadyVerified ? persistentUser.email : '');
+  const [isEmailVerified, setIsEmailVerified] = useState(isAlreadyVerified);
   const [focusArea, setFocusArea] = useState('Navigating marital expectations and spousal pressure');
   const [notes, setNotes] = useState('');
   const [bookedAppointment, setBookedAppointment] = useState<Appointment | null>(null);
+  const [isBooking, setIsBooking] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+
+  // OTP Verification State for 1-1 Appointment
+  const [otpStep, setOtpStep] = useState<'idle' | 'otp_sent' | 'verified'>(isAlreadyVerified ? 'verified' : 'idle');
+  const [otpCode, setOtpCode] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpSuccess, setOtpSuccess] = useState<string | null>(null);
+  const [resendTimer, setResendTimer] = useState(0);
+
+  // Resend Countdown Timer
+  React.useEffect(() => {
+    let timer: ReturnType<typeof setInterval>;
+    if (resendTimer > 0) {
+      timer = setInterval(() => {
+        setResendTimer(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendTimer]);
 
   // Expressing / Catharsis Room State
   const [expressingText, setExpressingText] = useState('');
@@ -70,7 +124,70 @@ export const OneOnOneAppointmentModal: React.FC<OneOnOneModalProps> = ({
   const [expressingFeedback, setExpressingFeedback] = useState<string | null>(null);
   const audioContextRef = React.useRef<AudioContext | null>(null);
 
-  if (!isOpen) return null;
+  // Send OTP for Appointment
+  const handleSendAppointmentOtp = async () => {
+    const cleanEmail = participantEmail.toLowerCase().trim();
+    if (!cleanEmail || !cleanEmail.endsWith('@gmail.com')) {
+      setBookingError('Only personal @gmail.com addresses are accepted for study appointment verification.');
+      return;
+    }
+
+    setOtpError(null);
+    setOtpSuccess(null);
+    setBookingError(null);
+    setIsSendingOtp(true);
+
+    try {
+      const res = await sendOtpApi(cleanEmail);
+      setIsSendingOtp(false);
+
+      if (!res.success) {
+        setOtpError(res.error || 'Failed to dispatch passcode to Gmail.');
+        return;
+      }
+
+      setOtpStep('otp_sent');
+      setOtpSuccess(res.message || `Passcode sent to ${cleanEmail}. Please check your inbox.`);
+      setResendTimer(30);
+    } catch (err: any) {
+      setIsSendingOtp(false);
+      setOtpError(err?.message || 'Error communicating with verification server.');
+    }
+  };
+
+  // Verify OTP for Appointment
+  const handleVerifyAppointmentOtp = async () => {
+    const cleanEmail = participantEmail.toLowerCase().trim();
+    if (!cleanEmail.endsWith('@gmail.com')) {
+      setOtpError('Only @gmail.com addresses are accepted.');
+      return;
+    }
+    if (otpCode.length !== 6) {
+      setOtpError('Please enter the complete 6-digit passcode.');
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    setOtpError(null);
+
+    try {
+      const res = await verifyOtpApi(cleanEmail, otpCode);
+      setIsVerifyingOtp(false);
+
+      if (!res.success) {
+        setOtpError(res.error || 'Invalid or expired passcode.');
+        return;
+      }
+
+      setIsEmailVerified(true);
+      setOtpStep('verified');
+      setOtpSuccess('Gmail verified successfully!');
+      setBookingError(null);
+    } catch (err: any) {
+      setIsVerifyingOtp(false);
+      setOtpError(err?.message || 'Passcode verification failed.');
+    }
+  };
 
   // Toggle ambient white noise/rain generator using Web Audio API
   const toggleAmbientSound = () => {
@@ -117,26 +234,50 @@ export const OneOnOneAppointmentModal: React.FC<OneOnOneModalProps> = ({
     }
   };
 
-  const handleBookAppointment = (e: React.FormEvent) => {
+  const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!participantAlias.trim()) {
-      alert('Please enter a pseudonym or initials (e.g. "Alex M."). No real legal name required.');
+    const cleanEmail = participantEmail.toLowerCase().trim();
+
+    // Check @gmail.com requirement
+    if (!cleanEmail || !cleanEmail.endsWith('@gmail.com')) {
+      setBookingError('A valid personal @gmail.com address is required to receive meeting credentials.');
       return;
     }
 
-    const newApt = saveAppointment({
-      type: 'live_interview',
-      researcher,
-      date: selectedDate,
-      timeSlot: selectedTime,
-      format,
-      participantAlias: participantAlias.trim(),
-      participantEmail: participantEmail.trim() || undefined,
-      focusArea,
-      notes: notes.trim() || undefined,
-    });
+    // Require OTP verification
+    if (!isEmailVerified) {
+      setBookingError('Please verify your @gmail.com address with the single-use passcode before confirming.');
+      if (otpStep === 'idle') {
+        handleSendAppointmentOtp();
+      }
+      return;
+    }
 
-    setBookedAppointment(newApt);
+    const finalAlias = participantAlias.trim() || `Participant #${Math.floor(1000 + Math.random() * 9000)}`;
+
+    setIsBooking(true);
+    setBookingError(null);
+
+    try {
+      const newApt = await saveAppointmentAsync({
+        type: 'live_interview',
+        researcher,
+        date: selectedDate || AVAILABLE_DATES[0]?.full || new Date().toISOString().split('T')[0],
+        timeSlot: selectedTime || '02:00 PM - 02:45 PM EST',
+        format,
+        participantAlias: finalAlias,
+        participantEmail: cleanEmail,
+        focusArea,
+        notes: notes.trim() || undefined,
+      });
+
+      setParticipantAlias(finalAlias);
+      setBookedAppointment(newApt);
+      setIsBooking(false);
+    } catch (err: any) {
+      setIsBooking(false);
+      setBookingError(err?.message || 'Failed to save appointment to database.');
+    }
   };
 
   const handleDownloadICS = () => {
@@ -167,6 +308,8 @@ END:VCALENDAR`;
 
   const handleBurnAndRelease = () => {
     if (!expressingText.trim()) return;
+    const wordCount = expressingText.trim().split(/\s+/).length;
+    logCatharsisApi(wordCount);
     setBurnEffect(true);
     setTimeout(() => {
       setExpressingText('');
@@ -175,10 +318,14 @@ END:VCALENDAR`;
     }, 1200);
   };
 
-  const handleSaveExpressing = () => {
+  const handleSaveExpressing = async () => {
     if (!expressingText.trim()) return;
-    setExpressingFeedback('Your unprompted reflections have been encrypted and saved as an anonymous qualitative vignette (#EXP-8291).');
+    const wordCount = expressingText.trim().split(/\s+/).length;
+    await logCatharsisApi(wordCount);
+    setExpressingFeedback('Your unprompted reflections have been encrypted and saved as an anonymous qualitative vignette.');
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -367,29 +514,135 @@ END:VCALENDAR`;
                   {/* Pseudonym & Optional Email */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-black uppercase text-gray-800 mb-1">
-                        5. Your Alias / Preferred Pseudonym *
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-black uppercase text-gray-800">
+                          5. Your Alias / Preferred Pseudonym
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setParticipantAlias(`Participant #${Math.floor(1000 + Math.random() * 9000)}`)}
+                          className="text-[10px] text-[#FF5A36] font-bold hover:underline cursor-pointer"
+                        >
+                          Auto-generate
+                        </button>
+                      </div>
                       <input
                         type="text"
                         value={participantAlias}
                         onChange={(e) => setParticipantAlias(e.target.value)}
                         placeholder="e.g. Jordan T. or Participant #74"
-                        required
                         className="w-full p-2.5 rounded-xl border-2 border-black bg-white text-xs font-bold focus:outline-none shadow-[2px_2px_0px_0px_#000]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-black uppercase text-gray-800 mb-1">
-                        Optional Reminder Email
-                      </label>
-                      <input
-                        type="email"
-                        value={participantEmail}
-                        onChange={(e) => setParticipantEmail(e.target.value)}
-                        placeholder="For meeting calendar invite only"
-                        className="w-full p-2.5 rounded-xl border-2 border-black bg-white text-xs font-bold focus:outline-none shadow-[2px_2px_0px_0px_#000]"
-                      />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-black uppercase text-gray-800">
+                          6. Verified Gmail Address (@gmail.com) *
+                        </label>
+                        {isEmailVerified && (
+                          <span className="text-[10px] text-[#1E7E52] font-black flex items-center gap-1 bg-[#D4EDDA] px-1.5 py-0.5 rounded border border-[#1E7E52]">
+                            <CheckCircle2 className="w-3 h-3 text-[#1E7E52]" />
+                            Verified
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5">
+                        <input
+                          type="email"
+                          value={participantEmail}
+                          disabled={isEmailVerified || isSendingOtp}
+                          onChange={(e) => {
+                            setParticipantEmail(e.target.value);
+                            setIsEmailVerified(false);
+                            setOtpStep('idle');
+                            setOtpError(null);
+                            setBookingError(null);
+                          }}
+                          placeholder="your.email@gmail.com"
+                          required
+                          className={`flex-1 p-2.5 rounded-xl border-2 border-black bg-white text-xs font-bold focus:outline-none shadow-[2px_2px_0px_0px_#000] ${
+                            isEmailVerified ? 'bg-[#D4EDDA]/40 text-[#1E7E52] border-[#1E7E52]' : ''
+                          }`}
+                        />
+                        {!isEmailVerified && (
+                          <button
+                            type="button"
+                            onClick={handleSendAppointmentOtp}
+                            disabled={isSendingOtp || !participantEmail.trim() || resendTimer > 0}
+                            className="neo-btn bg-[#FFE600] text-black px-3 py-2 text-xs font-black shrink-0 disabled:opacity-50 cursor-pointer shadow-[2px_2px_0px_0px_#000]"
+                          >
+                            {isSendingOtp ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : resendTimer > 0 ? (
+                              `Wait ${resendTimer}s`
+                            ) : (
+                              'Send OTP'
+                            )}
+                          </button>
+                        )}
+                        {isEmailVerified && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEmailVerified(false);
+                              setOtpStep('idle');
+                            }}
+                            className="text-[10px] text-gray-500 hover:text-black underline self-center px-1 font-bold cursor-pointer"
+                          >
+                            Change
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-500 font-medium mt-1">
+                        Only @gmail.com is supported for secure Google Meet room access and OTP.
+                      </p>
+
+                      {/* Inline OTP verification card when OTP is sent */}
+                      {otpStep === 'otp_sent' && !isEmailVerified && (
+                        <div className="mt-2 p-3 rounded-xl bg-[#FFF8F0] border-2 border-black space-y-2 animate-fade-in shadow-[2px_2px_0px_0px_#000]">
+                          <div className="flex items-center justify-between text-xs font-bold text-gray-800">
+                            <span>Enter 6-Digit Passcode:</span>
+                            <span className="font-mono text-[#FF5A36] text-[10px]">Valid 10 mins</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              maxLength={6}
+                              value={otpCode}
+                              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                              placeholder="123456"
+                              className="w-28 tracking-widest text-center text-sm font-black font-mono p-2 rounded-lg border-2 border-black bg-white focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleVerifyAppointmentOtp}
+                              disabled={otpCode.length !== 6 || isVerifyingOtp}
+                              className="neo-btn bg-[#1E7E52] text-white px-3 py-2 text-xs font-black disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_0px_#000]"
+                            >
+                              {isVerifyingOtp ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Verify Passcode</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          {otpError && (
+                            <p className="text-[11px] font-bold text-red-600 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 shrink-0" />
+                              <span>{otpError}</span>
+                            </p>
+                          )}
+                          {otpSuccess && (
+                            <p className="text-[11px] font-bold text-green-700 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 shrink-0" />
+                              <span>{otpSuccess}</span>
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -406,12 +659,29 @@ END:VCALENDAR`;
                     />
                   </div>
 
+                  {bookingError && (
+                    <div className="p-3.5 rounded-2xl neo-card-sm bg-[#FFEFEA] border-2 border-red-500 text-xs font-bold text-red-700 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                      <span>{bookingError}</span>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    className="w-full py-3.5 neo-btn bg-[#FF5A36] text-white text-sm font-black flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_#000]"
+                    disabled={isBooking}
+                    className="w-full py-3.5 neo-btn bg-[#FF5A36] text-white text-sm font-black flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_#000] disabled:opacity-50 cursor-pointer"
                   >
-                    <Calendar className="w-4 h-4" />
-                    <span>Confirm Confidential 1-on-1 Appointment</span>
+                    {isBooking ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Securing Academic Slot...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="w-4 h-4" />
+                        <span>Confirm Confidential 1-on-1 Appointment</span>
+                      </>
+                    )}
                   </button>
                 </form>
               ) : (

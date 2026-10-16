@@ -31,6 +31,10 @@ dist-ssr
 # Vercel
 .vercel
 
+# Cloudflare
+.wrangler
+.dev.vars
+
 # Local push scripts
 push.sh
 *.sh

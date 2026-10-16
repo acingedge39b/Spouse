@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { BlurMode, Submission } from '../types';
 import { CanvasFaceAnonymizer, initFaceDetector } from '../lib/faceAnonymizer';
-import { saveSubmission } from '../lib/storage';
+import { saveSubmissionAsync } from '../lib/storage';
 
 interface RecordingRoomProps {
   onSubmitted: (submission: Submission) => void;
@@ -412,8 +412,11 @@ export const RecordingRoom: React.FC<RecordingRoomProps> = ({
     setRecordingState('idle');
   };
 
-  const handleSubmit = () => {
-    if (!recordedBlobRef.current) return;
+  const handleSubmit = async () => {
+    if (!recordedBlobRef.current || recordedBlobRef.current.size === 0) {
+      alert('No recorded reflection detected. Please record your narrative before submitting.');
+      return;
+    }
     setIsSubmitting(true);
 
     const activePrompt = STUDY_PROMPTS.find(p => p.id === selectedPromptId);
@@ -430,11 +433,15 @@ export const RecordingRoom: React.FC<RecordingRoomProps> = ({
       fileSizeBytes: recordedBlobRef.current.size,
     };
 
-    setTimeout(() => {
-      const saved = saveSubmission(submissionData, recordedBlobRef.current || undefined);
+    try {
+      const saved = await saveSubmissionAsync(submissionData, recordedBlobRef.current || undefined);
       setIsSubmitting(false);
       onSubmitted(saved);
-    }, 700);
+    } catch (err: any) {
+      console.error('Submission error:', err);
+      setIsSubmitting(false);
+      alert('Failed to save submission to database: ' + (err?.message || 'Unknown error'));
+    }
   };
 
   const formatTime = (seconds: number) => {

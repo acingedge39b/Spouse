@@ -12,15 +12,35 @@ import { CrisisModal } from './components/CrisisModal';
 import { WithdrawalModal } from './components/WithdrawalModal';
 import { InvestigatorPortal } from './components/InvestigatorPortal';
 import { OneOnOneAppointmentModal } from './components/OneOnOneAppointmentModal';
-import { isUserAlreadyVerified } from './lib/storage';
+import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
+import { ShieldCheck } from 'lucide-react';
 
 export function App() {
   const [currentStep, setCurrentStep] = useState<StudyStep>('landing');
   const [isCrisisOpen, setIsCrisisOpen] = useState(false);
   const [isWithdrawalOpen, setIsWithdrawalOpen] = useState(false);
   const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isInvestigatorMode, setIsInvestigatorMode] = useState(false);
   const [lastSubmission, setLastSubmission] = useState<Submission | null>(null);
+
+  // Hidden admin access: URL ?admin=true or #admin, or Ctrl+Shift+A
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('admin') === 'true' || window.location.hash === '#admin') {
+      setIsInvestigatorMode(true);
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        setIsInvestigatorMode(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleStepNavigation = (step: StudyStep) => {
     setIsInvestigatorMode(false);
@@ -33,8 +53,6 @@ export function App() {
     setCurrentStep('confirmation');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  const isVerified = isUserAlreadyVerified();
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#121212] flex flex-col font-sans selection:bg-[#FF5A36]/25 selection:text-[#FF5A36]">
@@ -57,11 +75,11 @@ export function App() {
           <>
             {currentStep === 'landing' && (
               <LandingPage
-                onBegin={() => handleStepNavigation(isVerified ? 'recording' : 'screening')}
-                onJumpToRecording={() => handleStepNavigation('recording')}
+                onBegin={() => handleStepNavigation('screening')}
                 onOpenWithdrawal={() => setIsWithdrawalOpen(true)}
                 onOpenCrisis={() => setIsCrisisOpen(true)}
                 onOpenAppointment={() => setIsAppointmentOpen(true)}
+                onOpenPrivacy={() => setIsPrivacyOpen(true)}
               />
             )}
 
@@ -82,7 +100,7 @@ export function App() {
 
             {currentStep === 'consent' && (
               <ConsentGuidelines
-                onAgree={() => handleStepNavigation(isVerified ? 'recording' : 'otp')}
+                onAgree={() => handleStepNavigation('otp')}
                 onBack={() => handleStepNavigation('screening')}
               />
             )}
@@ -118,7 +136,12 @@ export function App() {
         <footer className="mt-auto border-t-2 border-black bg-white py-6 px-4 text-xs font-semibold text-gray-700">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-6 h-6 rounded-lg neo-card bg-[#FF5A36] text-white flex items-center justify-center font-black text-xs">
+              {/* Discreet click trigger for academic faculty & investigator access */}
+              <div
+                onClick={() => setIsInvestigatorMode(!isInvestigatorMode)}
+                className="w-6 h-6 rounded-lg neo-card bg-[#FF5A36] text-white flex items-center justify-center font-black text-xs cursor-pointer select-none hover:opacity-90"
+                title="Institutional Review Board Protocol #2026-SP84"
+              >
                 Ψ
               </div>
               <span>
@@ -149,10 +172,11 @@ export function App() {
               </button>
               <span>•</span>
               <button
-                onClick={() => setIsInvestigatorMode(!isInvestigatorMode)}
-                className="hover:text-black underline"
+                onClick={() => setIsPrivacyOpen(true)}
+                className="text-gray-800 font-extrabold hover:text-[#0051C3] hover:underline flex items-center gap-1.5"
               >
-                Investigator Login
+                <ShieldCheck className="w-3.5 h-3.5 text-[#1E7E52]" />
+                <span>Academic Privacy & Data Governance</span>
               </button>
             </div>
           </div>
@@ -174,6 +198,13 @@ export function App() {
         isOpen={isAppointmentOpen}
         onClose={() => setIsAppointmentOpen(false)}
         onOpenCrisis={() => setIsCrisisOpen(true)}
+      />
+
+      <PrivacyPolicyModal
+        isOpen={isPrivacyOpen}
+        onClose={() => setIsPrivacyOpen(false)}
+        onOpenCrisis={() => setIsCrisisOpen(true)}
+        onOpenWithdrawal={() => setIsWithdrawalOpen(true)}
       />
     </div>
   );

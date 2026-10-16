@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, Mail, ShieldCheck, RefreshCw, Sparkles, CheckCircle2 } from 'lucide-react';
-import { saveVerifiedUser, isUserAlreadyVerified, getPersistentVerifiedUser } from '../lib/storage';
+import { ArrowLeft, ArrowRight, Mail, ShieldCheck, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { sendOtpApi, verifyOtpApi } from '../lib/api';
 
 interface EmailVerificationProps {
   onVerified: () => void;
@@ -11,19 +11,11 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
   const [step, setStep] = useState<'input_email' | 'enter_otp'>('input_email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [generatedCode, setGeneratedCode] = useState('849201');
   const [isSending, setIsSending] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(30);
-
-  const existingSession = getPersistentVerifiedUser();
-
-  // If returning participant already has a saved session, fill their email automatically
-  useEffect(() => {
-    if (existingSession?.email) {
-      setEmail(existingSession.email);
-    }
-  }, []);
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
@@ -35,22 +27,33 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
     return () => clearInterval(timer);
   }, [step, resendCooldown]);
 
-  const handleSendOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !email.includes('@')) {
-      setError('Please provide a valid email address.');
+  const handleSendOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail || !cleanEmail.endsWith('@gmail.com')) {
+      setError('Only personal @gmail.com addresses are accepted for research study verification.');
       return;
     }
     setError(null);
+    setSuccessMsg(null);
     setIsSending(true);
 
-    setTimeout(() => {
-      const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedCode(newCode);
+    try {
+      const res = await sendOtpApi(email);
       setIsSending(false);
+
+      if (!res.success) {
+        setError(res.error || 'Failed to dispatch passcode.');
+        return;
+      }
+
+      setSuccessMsg(res.message || `Single-use passcode dispatched to ${email}.`);
       setStep('enter_otp');
       setResendCooldown(30);
-    }, 500);
+    } catch (err: any) {
+      setIsSending(false);
+      setError(err?.message || 'Error communicating with authentication server.');
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -72,13 +75,7 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
     }
   };
 
-  const handleAutoFill = () => {
-    const digits = generatedCode.split('');
-    setOtp(digits);
-    setError(null);
-  };
-
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const entered = otp.join('');
     if (entered.length < 6) {
@@ -86,12 +83,22 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
       return;
     }
 
-    if (entered === generatedCode || entered === '849201' || entered === '123456') {
-      setError(null);
-      saveVerifiedUser(email);
+    setError(null);
+    setIsVerifying(true);
+
+    try {
+      const res = await verifyOtpApi(email, entered);
+      setIsVerifying(false);
+
+      if (!res.success) {
+        setError(res.error || 'Invalid or expired passcode.');
+        return;
+      }
+
       onVerified();
-    } else {
-      setError(`Invalid passcode. Use test code ${generatedCode}.`);
+    } catch (err: any) {
+      setIsVerifying(false);
+      setError(err?.message || 'Verification failed. Please try again.');
     }
   };
 
@@ -114,40 +121,23 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
       <div className="neo-card bg-[#FFFDF7] p-6 sm:p-8 space-y-6">
         <div>
           <span className="neo-badge bg-[#E8EEFF] text-[#3B82F6] text-[10px] px-2 py-0.5">
-            Bot Prevention
+            Bot Prevention & Cloudflare D1 Auth
           </span>
           <h2 className="text-2xl sm:text-3xl font-serif font-black text-[#121212] mt-2">
             {step === 'input_email' ? 'Quick Email Verification' : 'Enter 6-Digit Passcode'}
           </h2>
           <p className="text-xs sm:text-sm text-gray-600 font-medium mt-1 leading-relaxed">
             {step === 'input_email'
-              ? 'We verify your email once to protect the sample against spam bots. A permanent cookie will remember your device so you never have to repeat this.'
-              : `We sent a single-use passcode to ${email}.`}
+              ? 'We verify your email once to protect the academic sample from automated spam bots.'
+              : `We sent a single-use passcode to ${email}. Check your inbox or spam folder.`}
           </p>
         </div>
-
-        {/* Saved Session Fast-Track Affordance */}
-        {existingSession && step === 'input_email' && (
-          <div className="neo-card-sm bg-[#D4EDDA] p-3.5 text-xs flex items-center justify-between gap-2 border-2 border-black">
-            <div>
-              <span className="font-extrabold text-[#1E7E52] block">Saved Cookie Session Found</span>
-              <span className="text-gray-700 font-mono text-[11px]">{existingSession.email}</span>
-            </div>
-            <button
-              type="button"
-              onClick={onVerified}
-              className="neo-btn bg-[#FF5A36] text-white px-3.5 py-1.5 text-xs font-bold"
-            >
-              Continue Now ➔
-            </button>
-          </div>
-        )}
 
         {/* Decoupled Privacy highlight */}
         <div className="neo-card-sm bg-[#FFEFEA] p-3.5 text-xs text-gray-800 flex items-start gap-2.5">
           <ShieldCheck className="w-4 h-4 text-[#FF5A36] shrink-0 mt-0.5" />
           <div className="text-[11px] leading-relaxed">
-            <span className="font-extrabold text-[#9A3412]">Decoupled Architecture:</span> Your email is stored exclusively in a bot-screening verification table with zero foreign keys to your video or audio diaries.
+            <span className="font-extrabold text-[#9A3412]">Decoupled Architecture:</span> Your email is stored exclusively in a bot-screening verification table in Cloudflare D1 with zero foreign keys to your video or audio diaries.
           </div>
         </div>
 
@@ -172,20 +162,23 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
             </div>
 
             {error && (
-              <p className="text-xs text-red-600 font-bold">{error}</p>
+              <div className="flex items-center gap-2 text-xs text-red-600 font-bold bg-red-50 p-2.5 rounded-lg border border-red-200">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
+              </div>
             )}
 
             <button
               type="submit"
               disabled={isSending || !email}
               className={`w-full py-4 neo-btn text-white text-sm sm:text-base flex items-center justify-center gap-2 ${
-                email ? 'bg-[#FF5A36]' : 'bg-gray-300 text-gray-500 cursor-not-allowed border-gray-400 shadow-none'
+                email && !isSending ? 'bg-[#FF5A36]' : 'bg-gray-300 text-gray-500 cursor-not-allowed border-gray-400 shadow-none'
               }`}
             >
               {isSending ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Dispatching Passcode...</span>
+                  <span>Connecting to Cloudflare Backend...</span>
                 </>
               ) : (
                 <>
@@ -197,25 +190,12 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
           </form>
         ) : (
           <form onSubmit={handleVerifyOtp} className="space-y-5">
-            {/* Simulation Helper Box */}
-            <div className="neo-card-sm bg-[#FFEFEA] p-3.5 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-black uppercase text-[#9A3412] flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-[#FF5A36]" />
-                  Simulated Passcode:
-                </span>
-                <span className="font-mono text-lg font-black text-[#FF5A36] tracking-wider block">
-                  {generatedCode}
-                </span>
+            {successMsg && (
+              <div className="flex items-center gap-2 text-xs text-[#1E7E52] font-semibold bg-[#D4EDDA] p-3 rounded-xl border border-[#1E7E52]/30">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-[#1E7E52]" />
+                <span>{successMsg}</span>
               </div>
-              <button
-                type="button"
-                onClick={handleAutoFill}
-                className="neo-btn bg-white text-[#9A3412] px-3 py-1.5 text-xs font-bold"
-              >
-                Auto-Fill
-              </button>
-            </div>
+            )}
 
             {/* OTP Digits input */}
             <div>
@@ -240,15 +220,30 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
             </div>
 
             {error && (
-              <p className="text-xs text-red-600 font-bold text-center">{error}</p>
+              <div className="flex items-center justify-center gap-1.5 text-xs text-red-600 font-bold bg-red-50 p-2.5 rounded-lg border border-red-200">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
+              </div>
             )}
 
             <button
               type="submit"
-              className="w-full py-4 neo-btn bg-[#FF5A36] text-white text-sm sm:text-base flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_#000]"
+              disabled={isVerifying || otp.join('').length < 6}
+              className={`w-full py-4 neo-btn text-white text-sm sm:text-base flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_#000] ${
+                otp.join('').length === 6 && !isVerifying ? 'bg-[#FF5A36]' : 'bg-gray-300 text-gray-500 cursor-not-allowed border-gray-400 shadow-none'
+              }`}
             >
-              <span>Verify & Remember On This Device</span>
-              <ArrowRight className="w-4 h-4" />
+              {isVerifying ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Verifying Against Database...</span>
+                </>
+              ) : (
+                <>
+                  <span>Verify & Remember On This Device</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
 
             <div className="text-center pt-1">
@@ -259,14 +254,10 @@ export const EmailVerification: React.FC<EmailVerificationProps> = ({ onVerified
               ) : (
                 <button
                   type="button"
-                  onClick={() => {
-                    const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-                    setGeneratedCode(newCode);
-                    setResendCooldown(30);
-                  }}
-                  className="text-xs font-bold text-[#FF5A36] underline"
+                  onClick={() => handleSendOtp()}
+                  className="text-xs font-bold text-[#FF5A36] underline hover:text-[#e04522]"
                 >
-                  Resend New Passcode
+                  Resend New Passcode via Gmail
                 </button>
               )}
             </div>

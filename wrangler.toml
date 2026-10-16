@@ -1,0 +1,21 @@
+name = "spouse-phd-study"
+main = "worker/index.ts"
+compatibility_date = "2026-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+IRB_PROTOCOL = "IRB-2026-SP84"
+GMAIL_FROM_NAME = "PhD Qualitative Research Study - Marital Pressure"
+ENVIRONMENT = "development"
+# To enable real Gmail sending on Cloudflare Free Tier, set:
+# GMAIL_USER = "your-email@gmail.com"
+# GMAIL_APP_PASSWORD = "xxxx xxxx xxxx xxxx"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "spouse_study_db"
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[dev]
+port = 8787
+ip = "0.0.0.0"

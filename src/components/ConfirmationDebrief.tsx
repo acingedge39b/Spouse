@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Submission } from '../types';
+import { Logo } from './Logo';
 
 interface ConfirmationProps {
   submission: Submission;
@@ -84,8 +85,8 @@ Crisis Support: Call or Text 988 (24/7)
       
       {/* Success Card */}
       <div className="neo-card bg-[#FFFDF7] p-6 sm:p-10 text-center space-y-5">
-        <div className="w-16 h-16 rounded-2xl neo-card bg-[#D4EDDA] text-[#1E7E52] flex items-center justify-center mx-auto">
-          <CheckCircle2 className="w-8 h-8" />
+        <div className="flex justify-center mb-1">
+          <Logo variant="mark" />
         </div>
 
         <div>
